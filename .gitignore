@@ -1,0 +1,13 @@
+# Godot 引擎缓存与本地工具
+.godot/
+.tools/
+
+# Python
+__pycache__/
+
+# 本地产物与临时文件
+dist/
+*.tmp
+*.log
+shot_*.png
+zoom_*.png
