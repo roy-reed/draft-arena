@@ -4,7 +4,8 @@
 - 仓库 https://github.com/roy-reed/draft-arena（私有）：AGENTS.md 代理契约、tools_setup_godot.py 引擎引导（三级回退，端到端实测）、README、.gitattributes(LF)。
 - GitHub Actions build-windows：push main 自动 导入+smoke+导出 exe+导出产物复测+上传 Artifact（30 天）。
 - Issues 任务板 #1–#4：第十轮 playtest 校验、M3 美术路线决策、商店页素材、锻体独立机制。
-- 下次目标：CI 首跑核验 → 第十轮 playtest（首领数值校验，#1）。
+- CI 修三处后全绿（run 34630497575）：模板 self-contained 路径（editor_data\export_templates.4.1.stable）、yml 控制字符转义污染、导出前建 dist 目录；产物 DraftArena-win64 32MB（30 天）。
+- 下次目标：第十轮 playtest（首领数值校验，#1）。
 
 ## 2026-09-10（第十四次收工：第九轮首领数值）
 - 全首领统一乘区：血×2、护甲×1.5+2、移速×1.2（_setup_boss 集中施加，分支内旧倍率清除防双重叠加）。
