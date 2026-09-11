@@ -27,7 +27,7 @@ jobs:
         run: |
           $v = "4.4.1-stable"
           # self-contained 模式：模板放 .tools/editor_settings/export_templates，用环境变量指过去
-          $dst = ".tools\editor_settings\export_templates\$v"
+          $dst = ".tools\godot\editor_data\export_templates.4.1.stable"
           New-Item -ItemType Directory -Force -Path $dst | Out-Null
           Set-Content .tools\godot\_sc_ "self-contained"
           $url = "https://github.com/godotengine/godot/releases/download/$v/Godot_v${v}_export_templates.tpz"
@@ -47,7 +47,6 @@ jobs:
       - name: Export exe
         shell: pwsh
         run: |
-          $env:GODOT_EDITOR_SETTINGS = "$PWD\.tools\editor_settings"
           .\.tools\godot\godot_console.exe --headless --path . --export-release "Windows" dist\DraftArena.exe
           if (-not (Test-Path dist\DraftArena.exe)) { exit 1 }
 
