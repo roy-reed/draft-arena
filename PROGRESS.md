@@ -1,5 +1,11 @@
 # 进度日志 — 每次收工追加 ≤5 行，倒序排列
 
+## 2026-09-10（第十五次收工：上线 GitHub + CI + 任务板）
+- 仓库 https://github.com/roy-reed/draft-arena（私有）：AGENTS.md 代理契约、tools_setup_godot.py 引擎引导（三级回退，端到端实测）、README、.gitattributes(LF)。
+- GitHub Actions build-windows：push main 自动 导入+smoke+导出 exe+导出产物复测+上传 Artifact（30 天）。
+- Issues 任务板 #1–#4：第十轮 playtest 校验、M3 美术路线决策、商店页素材、锻体独立机制。
+- 下次目标：CI 首跑核验 → 第十轮 playtest（首领数值校验，#1）。
+
 ## 2026-09-10（第十四次收工：第九轮首领数值）
 - 全首领统一乘区：血×2、护甲×1.5+2、移速×1.2（_setup_boss 集中施加，分支内旧倍率清除防双重叠加）。
 - 激光：原点改为贴图宝珠精确换算 (14,-15)（生成器 disc(34,5)，Sprite2D 居中锚点）；冷却 5→3.5s、预警 0.5→0.4s。
