@@ -47,6 +47,7 @@ jobs:
       - name: Export exe
         shell: pwsh
         run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
           .\.tools\godot\godot_console.exe --headless --path . --export-release "Windows" dist\DraftArena.exe
           if (-not (Test-Path dist\DraftArena.exe)) { exit 1 }
 
