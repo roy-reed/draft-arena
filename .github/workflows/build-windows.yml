@@ -27,7 +27,7 @@ jobs:
         run: |
           $v = "4.4.1-stable"
           # self-contained 模式：模板放 .tools/editor_settings/export_templates，用环境变量指过去
-          $dst = ".tools\godot\editor_data\export_templates.4.1.stable"
+          $dst = ".tools\godot\editor_data\export_templates\4.4.1.stable"
           New-Item -ItemType Directory -Force -Path $dst | Out-Null
           Set-Content .tools\godot\_sc_ "self-contained"
           $url = "https://github.com/godotengine/godot/releases/download/$v/Godot_v${v}_export_templates.tpz"
