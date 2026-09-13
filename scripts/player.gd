@@ -200,8 +200,8 @@ func has_passive(id: String) -> bool:
 	return id in owned_passives
 
 func add_max_hp(v: float) -> void:
-	max_hp += v
-	hp = minf(hp + v, max_hp)
+	max_hp = maxf(max_hp + v, 1.0)
+	hp = minf(hp + maxf(v, 0.0), max_hp)  # 负值（玻璃大炮）只压上限，不扣当前血
 
 func _physics_process(delta: float) -> void:
 	if not active or dead:

@@ -80,8 +80,8 @@ func _try_touch(delta: float) -> void:
 		player.take_damage(contact_damage, self)
 
 func take_damage(amount: float, from: Node2D) -> void:
-	if _dead or hp <= 0.0:
-		return
+	if _dead or hp <= 0.0 or amount <= 0.0:
+		return  # 零伤（选牌冻结期）直接跳过，不触发护甲地板
 	amount = maxf(amount - armor, 1.0)  # 护甲减伤（至少 1 点）
 	hp -= amount
 	var crit: bool = from != null and is_instance_valid(from) and from.get("last_crit") == true
