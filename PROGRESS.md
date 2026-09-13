@@ -1,5 +1,10 @@
 # 进度日志 — 每次收工追加 ≤5 行，倒序排列
 
+## 2026-09-11（第十六次收工：仓库体检 + PR 流程首跑）
+- 体检 5 项全修（PR #5）：①双首领连锁从未生效（首杀即清场，加存活门禁）②选牌冻结期伤害经护甲地板泄漏 1 点/tick（零伤早退）③玻璃大炮可叠负上限/低血致死（钳 1+负值不扣当前血）④GDD 牌数 32/33→39（18 武器卡+21 被动，清单补致命一击）⑤AGENTS.md 同步。
+- CI 增强：pull_request 触发（PR 必须过构建才可合）；首跑通过（3m24s）。
+- 工作流固化：体检→分支修复→PR→CI→合并，后续变动一律走 PR。
+
 ## 2026-09-10（第十五次收工：上线 GitHub + CI + 任务板）
 - 仓库 https://github.com/roy-reed/draft-arena（私有）：AGENTS.md 代理契约、tools_setup_godot.py 引擎引导（三级回退，端到端实测）、README、.gitattributes(LF)。
 - GitHub Actions build-windows：push main 自动 导入+smoke+导出 exe+导出产物复测+上传 Artifact（30 天）。
