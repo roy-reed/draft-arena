@@ -731,7 +731,7 @@ func _revive_twin(pos: Vector2) -> void:
 	nb.twin_cb = _revive_twin
 	nb.max_hp = float(regions[1]["boss_hp"])
 	nb.position = pos.clamp(ARENA.position + Vector2.ONE * 40.0, ARENA.end - Vector2.ONE * 40.0)
-	ui.flash_banner("双首连锁！10 秒内击杀另一只！")
+	ui.flash_banner("吐弹首领复活了！")
 	SFX.play("boss")
 	if not meta_d.get("tutorial_done", false) and not _hint_boss:
 		_hint_boss = true
@@ -828,9 +828,20 @@ func _on_boss_killed(coin_value: int, _pos: Vector2, _xp_value: int) -> void:
 	kills += 1
 	run_coins += coin_value
 	ui.update_coins(run_coins)
-	ui.hide_boss()
-	boss_ref = null
 	add_xp(BOSS_XP)
+	# 多首领门禁（区域 2 双吐弹）：仍有存活首领 → 只结算此只，不清场不推进，等连锁击杀
+	var survivor: Node2D = null
+	for b in _boss_refs:
+		if b != null and is_instance_valid(b) and not b._dead:
+			survivor = b
+			break
+	if survivor != null:
+		boss_ref = survivor  # HUD 血条跟随存活者
+		ui.show_boss()
+		ui.flash_banner("双首领：10 秒内击杀另一只！")
+		return
+	boss_ref = null
+	ui.hide_boss()
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if is_instance_valid(e):
 			e.queue_free()
