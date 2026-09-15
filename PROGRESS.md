@@ -1,5 +1,11 @@
 # 进度日志 — 每次收工追加 ≤5 行，倒序排列
 
+## 2026-09-16（第十九次收工：Boss 框架批次 4）
+- 新增 SpitterBoss 独立场景与资源；弹道通过 BossServices 注入，表现层继续保留 Artwork、AnimationPlayer、语义锚点和 TelegraphLayer。
+- 新增 TwinBossEncounterController：复活窗口、逻辑槽位替换和连锁重开均由遭遇层管理，聚合血条上限固定；Main 只负责生成入口、奖励与 UI/SFX 响应。
+- 新增双生生产资源回归：验证两只各 1580 HP、速度 50.4、复活满血且总上限恒为 3160、三次实际击杀奖励累计和完成信号仅一次。
+- 验证：import、四项 Boss 契约、SMOKE_OK、SIM_OK、SOAK_OK、SHOT_OK、git diff --check 全绿；截图确认菜单与早期战斗无渲染回退。
+
 ## 2026-09-16（第十八次收工：Boss 框架批次 1–3）
 - 新增类型化 BossDefinition/EncounterContext/RuntimeStats/ScalingPolicy/Services/BossBase，配置统一在入树前完成，定义资源保持只读。
 - 冲锋 Boss 迁入独立场景与 BossVisual 语义表现层；Center/ProjectileOrigin/EffectOrigin 锚点和 gameplay radius 与贴图尺寸解耦。

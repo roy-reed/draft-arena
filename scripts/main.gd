@@ -18,7 +18,9 @@ const UIS := preload("res://scripts/ui.gd")
 const PauseHookS := preload("res://scripts/pause_hook.gd")
 const CrystalS := preload("res://scripts/crystal.gd")
 const BossEncounterS := preload("res://scripts/bosses/boss_encounter_controller.gd")
+const TwinBossEncounterS := preload("res://scripts/bosses/twin_boss_encounter_controller.gd")
 const ChargeBossDefinition := preload("res://resources/bosses/charge_boss.tres")
+const SpitterBossDefinition := preload("res://resources/bosses/spitter_boss.tres")
 
 const ARENA := Rect2(40, 40, 1200, 640)
 const CHAR_LEVEL_MAX := 5
@@ -106,7 +108,6 @@ var _smoke_pick_t := 0.0
 var _smoke_buys := {"card": false, "level": false, "pick": false}
 var _smoke_wtest_done := false
 var _hint_draft := false
-var _hint_boss := false
 var _first_draft_done := false
 var _wtest_phase := 0
 var _wtest_t := 0.0
@@ -666,6 +667,9 @@ func _spawn_boss(reg: Dictionary) -> void:
 	if not _endless and region_i == 0:
 		_spawn_region_one_boss()
 		return
+	if not _endless and region_i == 1:
+		_spawn_region_two_boss()
+		return
 	if _endless:
 		# 无尽：随机三首领之一，血量随次数增强
 		var b0
@@ -675,7 +679,6 @@ func _spawn_boss(reg: Dictionary) -> void:
 			1:
 				b0 = BossSpitterS.new()
 				b0.ebullet_spawner = _spawn_ebullet
-				b0.twin_cb = _revive_twin
 			_:
 				b0 = BossSummonerS.new()
 				b0.summon_cb = _summon_minion
@@ -684,28 +687,10 @@ func _spawn_boss(reg: Dictionary) -> void:
 		b0.coin = 25
 		_setup_boss(b0)
 	else:
-		match region_i:
-			1:
-				# 区域 2：双吐弹首领（10s 内相继击杀，否则复活连锁）
-				var b1 := _setup_boss(BossSpitterS.new())
-				b1.ebullet_spawner = _spawn_ebullet
-				b1.twin_cb = _revive_twin
-				b1.position = ARENA.get_center() + Vector2(-160, 0)
-				var b2 := _setup_boss(BossSpitterS.new())
-				b2.ebullet_spawner = _spawn_ebullet
-				b2.twin_cb = _revive_twin
-				b2.position = ARENA.get_center() + Vector2(160, 0)
-				b1.other = b2
-				b2.other = b1
-			2:
-				# 区域 3：激光×2、生命 ×1.5
-				var b3 := _setup_boss(BossSummonerS.new())
-				b3.summon_cb = _summon_minion
-				b3.laser_mult = 2.0
-			_:
-				# 区域 1：冲锋首领 血×1.5 / 防×1.5 / 攻×2
-				var b4 := _setup_boss(BossS.new())
-				b4.contact_damage *= 2.0  # 统一乘区之外的攻击特化
+		# 区域 3：激光×2、生命 ×1.5
+		var b3 := _setup_boss(BossSummonerS.new())
+		b3.summon_cb = _summon_minion
+		b3.laser_mult = 2.0
 	ui.show_boss()
 
 func _spawn_region_one_boss() -> void:
@@ -720,12 +705,44 @@ func _spawn_region_one_boss() -> void:
 	encounter.boss_spawned.connect(_on_encounter_boss_spawned)
 	encounter.primary_changed.connect(_on_encounter_primary_changed)
 	encounter.health_changed.connect(_on_encounter_health_changed)
+	encounter.member_defeated.connect(_on_encounter_member_defeated)
 	encounter.completed.connect(_on_boss_encounter_completed)
 	add_child(encounter)
 	var result := encounter.start_single(ChargeBossDefinition, context, BossServices.new())
 	if result != OK:
 		encounter.queue_free()
 		push_error("Region 1 boss encounter failed to start: %s" % error_string(result))
+		return
+	_boss_encounter = encounter
+	ui.show_boss()
+
+
+func _spawn_region_two_boss() -> void:
+	var contexts: Array[BossEncounterContext] = []
+	for offset_x in [-160.0, 160.0]:
+		var context := BossEncounterContext.new()
+		context.region_index = region_i
+		context.arena = ARENA
+		context.spawn_position = ARENA.get_center() + Vector2(offset_x, 0.0)
+		context.player = player
+		context.rng.seed = randi()
+		contexts.append(context)
+
+	var services := BossServices.new()
+	services.spawn_enemy_projectile = _spawn_ebullet
+	var encounter := TwinBossEncounterS.new() as TwinBossEncounterController
+	encounter.boss_spawned.connect(_on_encounter_boss_spawned)
+	encounter.primary_changed.connect(_on_encounter_primary_changed)
+	encounter.health_changed.connect(_on_encounter_health_changed)
+	encounter.member_defeated.connect(_on_encounter_member_defeated)
+	encounter.completed.connect(_on_boss_encounter_completed)
+	encounter.revive_window_started.connect(_on_twin_revive_window_started)
+	encounter.member_revived.connect(_on_twin_member_revived)
+	add_child(encounter)
+	var result := encounter.start_twins(SpitterBossDefinition, contexts, services)
+	if result != OK:
+		encounter.queue_free()
+		push_error("Region 2 boss encounter failed to start: %s" % error_string(result))
 		return
 	_boss_encounter = encounter
 	ui.show_boss()
@@ -739,6 +756,20 @@ func _on_encounter_primary_changed(boss: BossBase) -> void:
 
 func _on_encounter_health_changed(current: float, maximum: float) -> void:
 	ui.set_boss(current, maximum)
+
+
+func _on_encounter_member_defeated(_boss: BossBase, _reward_coin: int, _reward_xp: int) -> void:
+	enemies_alive = maxi(0, enemies_alive - 1)
+
+
+func _on_twin_revive_window_started(duration: float) -> void:
+	ui.flash_banner("双首领：%.0f 秒内击杀另一只！" % duration)
+
+
+func _on_twin_member_revived() -> void:
+	ui.flash_banner("吐弹首领复活了！")
+	SFX.play("boss")
+
 
 func _on_boss_encounter_completed(defeated_count: int, reward_coin: int, reward_xp: int) -> void:
 	kills += defeated_count
@@ -767,25 +798,6 @@ func _setup_boss(b) -> Node2D:
 	boss_ref = b
 	enemies_alive += 1
 	return b
-
-func _revive_twin(pos: Vector2) -> void:
-	# 存活者复活搭档（满血）；两只同在则连锁结束
-	var alive_twins := 0
-	for b in _boss_refs:
-		if is_instance_valid(b) and not b._dead:
-			alive_twins += 1
-	if alive_twins >= 2 or alive_twins == 0:
-		return
-	var nb := _setup_boss(BossSpitterS.new())
-	nb.ebullet_spawner = _spawn_ebullet
-	nb.twin_cb = _revive_twin
-	nb.max_hp = float(regions[1]["boss_hp"])
-	nb.position = pos.clamp(ARENA.position + Vector2.ONE * 40.0, ARENA.end - Vector2.ONE * 40.0)
-	ui.flash_banner("吐弹首领复活了！")
-	SFX.play("boss")
-	if not meta_d.get("tutorial_done", false) and not _hint_boss:
-		_hint_boss = true
-		ui.show_hint("首领蓄力变黄时，躲开它的冲锋直线", 4.0)
 
 func _spawn_bullet(pos: Vector2, dir: Vector2, dmg: float, pierce: int, bounce: int, from_player: Node2D) -> void:
 	var b := BulletS.new()
