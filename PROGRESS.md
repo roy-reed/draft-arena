@@ -1,5 +1,11 @@
 # 进度日志 — 每次收工追加 ≤5 行，倒序排列
 
+## 2026-09-16（第十八次收工：Boss 框架批次 1–3）
+- 新增类型化 BossDefinition/EncounterContext/RuntimeStats/ScalingPolicy/Services/BossBase，配置统一在入树前完成，定义资源保持只读。
+- 冲锋 Boss 迁入独立场景与 BossVisual 语义表现层；Center/ProjectileOrigin/EffectOrigin 锚点和 gameplay radius 与贴图尺寸解耦。
+- 新增 BossEncounterController，区域 1 已接入统一成员、聚合血条与一次性奖励/完成出口；生产资源单 Boss、双成员契约均通过。
+- 验证：import、BOSS_FOUNDATION_OK、CHARGE_BOSS_OK、BOSS_ENCOUNTER_OK、SMOKE_OK、SIM_OK、SOAK_OK、git diff --check 全绿。
+
 ## 2026-09-13（第十七次收工：下轮方案入库）
 - 第十轮反馈的修改建议按 Roy 指示**暂不执行**，完整拆解为实施清单存 Issue #7：boss 乘区（攻×3/血×15/防×5，附防数值崩坏提示）、移除最终 boss 激光（含冗余代码清理点）、卡牌精研→固定价随机装备碎片（5 片合成、白绿蓝橙红金六档、schema 迁移与旧档兼容）、锻体保留。
 - dist/DraftArena.exe 已更新至 PR #5 修复版（09-13 构建，导出后 smoke 验证）。

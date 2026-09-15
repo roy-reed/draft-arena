@@ -17,6 +17,8 @@ const BoomerangS := preload("res://scripts/boomerang.gd")
 const UIS := preload("res://scripts/ui.gd")
 const PauseHookS := preload("res://scripts/pause_hook.gd")
 const CrystalS := preload("res://scripts/crystal.gd")
+const BossEncounterS := preload("res://scripts/bosses/boss_encounter_controller.gd")
+const ChargeBossDefinition := preload("res://resources/bosses/charge_boss.tres")
 
 const ARENA := Rect2(40, 40, 1200, 640)
 const CHAR_LEVEL_MAX := 5
@@ -98,6 +100,7 @@ var _border_node: Node = null
 var _endless := false
 var _endless_boss_n := 0
 var _boss_refs: Array = []
+var _boss_encounter: BossEncounterController = null
 static var _soak_done := 0  # 跨场景重载持久（实例变量会被 reload 重置）
 var _smoke_pick_t := 0.0
 var _smoke_buys := {"card": false, "level": false, "pick": false}
@@ -215,7 +218,7 @@ func _process(delta: float) -> void:
 			return
 	if player != null:
 		ui.update_hp(player.hp, player.max_hp)
-	if boss_ref != null and is_instance_valid(boss_ref):
+	if _boss_encounter == null and boss_ref != null and is_instance_valid(boss_ref):
 		ui.set_boss(boss_ref.hp, boss_ref.max_hp)
 	match state:
 		"menu":
@@ -417,6 +420,7 @@ func _start_run() -> void:
 	is_boss_wave = false
 	enemies_alive = 0
 	boss_ref = null
+	_boss_encounter = null
 	_first_draft_done = false
 	xp_accum = 0
 	player_level = 1
@@ -659,6 +663,9 @@ func _summon_minion(pos: Vector2, kind: String, elite: bool) -> void:
 
 func _spawn_boss(reg: Dictionary) -> void:
 	_boss_refs = []
+	if not _endless and region_i == 0:
+		_spawn_region_one_boss()
+		return
 	if _endless:
 		# 无尽：随机三首领之一，血量随次数增强
 		var b0
@@ -700,6 +707,49 @@ func _spawn_boss(reg: Dictionary) -> void:
 				var b4 := _setup_boss(BossS.new())
 				b4.contact_damage *= 2.0  # 统一乘区之外的攻击特化
 	ui.show_boss()
+
+func _spawn_region_one_boss() -> void:
+	var context := BossEncounterContext.new()
+	context.region_index = region_i
+	context.arena = ARENA
+	context.spawn_position = _edge_point()
+	context.player = player
+	context.rng.seed = randi()
+
+	var encounter := BossEncounterS.new() as BossEncounterController
+	encounter.boss_spawned.connect(_on_encounter_boss_spawned)
+	encounter.primary_changed.connect(_on_encounter_primary_changed)
+	encounter.health_changed.connect(_on_encounter_health_changed)
+	encounter.completed.connect(_on_boss_encounter_completed)
+	add_child(encounter)
+	var result := encounter.start_single(ChargeBossDefinition, context, BossServices.new())
+	if result != OK:
+		encounter.queue_free()
+		push_error("Region 1 boss encounter failed to start: %s" % error_string(result))
+		return
+	_boss_encounter = encounter
+	ui.show_boss()
+
+func _on_encounter_boss_spawned(boss: BossBase) -> void:
+	_boss_refs.append(boss)
+	enemies_alive += 1
+
+func _on_encounter_primary_changed(boss: BossBase) -> void:
+	boss_ref = boss
+
+func _on_encounter_health_changed(current: float, maximum: float) -> void:
+	ui.set_boss(current, maximum)
+
+func _on_boss_encounter_completed(defeated_count: int, reward_coin: int, reward_xp: int) -> void:
+	kills += defeated_count
+	run_coins += reward_coin
+	ui.update_coins(run_coins)
+	add_xp(reward_xp)
+	boss_ref = null
+	if _boss_encounter != null:
+		_boss_encounter.queue_free()
+		_boss_encounter = null
+	_finish_boss_wave()
 
 func _setup_boss(b) -> Node2D:
 	# 全首领统一强化乘区（第八轮 playtest）：血×2、护甲×1.5、移速×1.2
@@ -840,6 +890,10 @@ func _on_boss_killed(coin_value: int, _pos: Vector2, _xp_value: int) -> void:
 		ui.show_boss()
 		ui.flash_banner("双首领：10 秒内击杀另一只！")
 		return
+	_finish_boss_wave()
+
+func _finish_boss_wave() -> void:
+	# 首领战的单一推进出口；新旧 Boss 路径在此之后共享完全相同的清场与区域流转。
 	boss_ref = null
 	ui.hide_boss()
 	for e in get_tree().get_nodes_in_group("enemies"):
