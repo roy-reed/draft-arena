@@ -13,6 +13,7 @@ var services: BossServices
 var _configured := false
 var _state_id: StringName = &"idle"
 var _phase_id: StringName = &"default"
+var _visual: BossVisual
 
 
 func configure(
@@ -50,6 +51,7 @@ func configure(
 	arena = context.arena
 	position = context.spawn_position
 	is_elite = true
+	body_color = new_definition.hud_color
 	_configured = true
 	return OK
 
@@ -63,6 +65,17 @@ func _ready() -> void:
 	health_changed.emit(hp, max_hp)
 	state_changed.emit(_state_id)
 	phase_changed.emit(_phase_id)
+	if _visual != null:
+		_visual.play_semantic(_visual_cue_for_state(_state_id))
+
+
+func _setup_visual() -> void:
+	_visual = get_node_or_null("VisualRoot") as BossVisual
+	if _visual == null:
+		super()
+		return
+	_visual.setup(radius, tint, body_color)
+	_poly = _visual.placeholder_polygon()
 
 
 func take_damage(amount: float, from: Node2D) -> void:
@@ -79,6 +92,8 @@ func change_state(next_state: StringName) -> void:
 		return
 	_state_id = next_state
 	state_changed.emit(_state_id)
+	if _visual != null:
+		_visual.play_semantic(_visual_cue_for_state(_state_id))
 
 
 func change_phase(next_phase: StringName) -> void:
@@ -98,3 +113,22 @@ func get_phase_id() -> StringName:
 
 func required_services() -> Array[StringName]:
 	return []
+
+
+func visual_contract_errors() -> PackedStringArray:
+	if _visual == null:
+		return PackedStringArray(["VisualRoot must use BossVisual"])
+	return _visual.validate_contract()
+
+
+func anchor_global_position(anchor_name: StringName) -> Vector2:
+	return _visual.anchor_global_position(anchor_name) if _visual != null else global_position
+
+
+func face_direction(direction: Vector2) -> void:
+	if _visual != null:
+		_visual.face_direction(direction)
+
+
+func _visual_cue_for_state(state_id: StringName) -> StringName:
+	return state_id

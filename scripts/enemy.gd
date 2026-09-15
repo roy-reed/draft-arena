@@ -30,6 +30,10 @@ func _ready() -> void:
 	add_to_group("enemies")
 	z_index = 3
 	hp = max_hp
+	_setup_visual()
+
+
+func _setup_visual() -> void:
 	var pts := PackedVector2Array()
 	for i in 8:
 		pts.append(Vector2.RIGHT.rotated(TAU * i / 8.0) * radius)
