@@ -19,10 +19,22 @@ python tools_setup_godot.py        # 下载引擎到 .tools/godot/
 
 | 文档 | 内容 |
 |---|---|
-| [GDD.md](GDD.md) | 权威设计源：机制、数值表、33 张牌表、里程碑 |
+| [GDD.md](GDD.md) | 权威设计源：机制、数值表、39 张牌表、里程碑 |
 | [PROGRESS.md](PROGRESS.md) | 进度日志（倒序，每次收工追加） |
 | [ART_SPEC.md](ART_SPEC.md) | 美术规格与替换指南 |
 | INTEGRATION.md / AUDIO_INTEGRATION.md | fx / audio 表现层接线 |
+
+## 本地验收
+
+```bash
+.tools/godot/godot_console.exe --headless --path . --import
+.tools/godot/godot_console.exe --headless --path . -- --boss-test
+.tools/godot/godot_console.exe --headless --path . --script res://scripts/tests/sawblade_cooldown_test.gd
+.tools/godot/godot_console.exe --headless --path . --script res://scripts/tests/spawn_curve_test.gd
+.tools/godot/godot_console.exe --headless --path . -- --smoke
+.tools/godot/godot_console.exe --headless --path . -- --sim
+.tools/godot/godot_console.exe --headless --path . -- --soak
+```
 
 ## 自动构建
 

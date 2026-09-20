@@ -77,6 +77,11 @@ func _cancel_revive() -> void:
 	_revive_time = -1.0
 
 
+func abort(reason: String = "aborted") -> void:
+	_cancel_revive()
+	super.abort(reason)
+
+
 func _copy_context(source: BossEncounterContext) -> BossEncounterContext:
 	var result := BossEncounterContext.new()
 	result.mode = source.mode

@@ -8,9 +8,6 @@ const MetaS := preload("res://scripts/meta.gd")
 const PlayerS := preload("res://scripts/player.gd")
 const EnemyS := preload("res://scripts/enemy.gd")
 const SpitterS := preload("res://scripts/spitter.gd")
-const BossS := preload("res://scripts/boss.gd")
-const BossSpitterS := preload("res://scripts/boss_spitter.gd")
-const BossSummonerS := preload("res://scripts/boss_summoner.gd")
 const BulletS := preload("res://scripts/bullet.gd")
 const EBulletS := preload("res://scripts/ebullet.gd")
 const BoomerangS := preload("res://scripts/boomerang.gd")
@@ -21,6 +18,9 @@ const BossEncounterS := preload("res://scripts/bosses/boss_encounter_controller.
 const TwinBossEncounterS := preload("res://scripts/bosses/twin_boss_encounter_controller.gd")
 const ChargeBossDefinition := preload("res://resources/bosses/charge_boss.tres")
 const SpitterBossDefinition := preload("res://resources/bosses/spitter_boss.tres")
+const SummonerBossDefinition := preload("res://resources/bosses/summoner_boss.tres")
+const BossTestRunnerS := preload("res://scripts/tests/boss_test_runner.gd")
+const SpawnCurveS := preload("res://scripts/spawn_curve.gd")
 
 const ARENA := Rect2(40, 40, 1200, 640)
 const CHAR_LEVEL_MAX := 5
@@ -34,7 +34,6 @@ const ELITE_CHANCE := 0.12  # 第 2 波起精英概率（--sim 与刷怪共用�
 const R1_HP_RAMP := 0.15    # 区域 1 逐波爬坡：每波敌人 HP +15%（负值即减压，方向待 playtest 校准）
 const R1_SPD_RAMP := 0.05   # 区域 1 逐波爬坡：每波移速 +5%
 const WAVE_TIME := 30.0     # 普通波固定时长（秒）；首领波无计时，打完首领才进下一地图
-const BOSS_XP := 120        # 击杀首领经验
 const REFINE_COST := 30     # 卡牌精研基础价（递增）
 const FORGE_COST := 45      # 锻体基础价（递增）
 const COMBO_WINDOW := 1.7   # 连杀窗口（秒）：窗口内连续击杀累积，每 10 连递增奖励
@@ -79,6 +78,8 @@ var to_spawn := 0
 var mob_cap := 10
 var spawn_t := 0.0
 var spawn_interval := 0.65
+var current_spawn_multiplier := 1.0
+var peak_enemies_alive := 0
 var time_left := 0.0
 var _last_time_shown := -1
 var inter_t := 0.0
@@ -101,7 +102,6 @@ var _floor_node: Node = null
 var _border_node: Node = null
 var _endless := false
 var _endless_boss_n := 0
-var _boss_refs: Array = []
 var _boss_encounter: BossEncounterController = null
 static var _soak_done := 0  # 跨场景重载持久（实例变量会被 reload 重置）
 var _smoke_pick_t := 0.0
@@ -116,11 +116,15 @@ var _wtest_dummies: Array = []
 var _t0 := 0
 
 func _ready() -> void:
+	var user_args := OS.get_cmdline_user_args()
+	if "--boss-test" in user_args:
+		get_tree().quit(BossTestRunnerS.run())
+		return
 	_add_floor()
-	smoke = "--smoke" in OS.get_cmdline_user_args() or "--soak" in OS.get_cmdline_user_args()
-	soak = "--soak" in OS.get_cmdline_user_args()
-	_shot = "--shot" in OS.get_cmdline_user_args()
-	if "--sim" in OS.get_cmdline_user_args():
+	smoke = "--smoke" in user_args or "--soak" in user_args
+	soak = "--soak" in user_args
+	_shot = "--shot" in user_args
+	if "--sim" in user_args:
 		_run_sim()
 		return
 	if smoke:
@@ -208,12 +212,16 @@ func _process(delta: float) -> void:
 			_on_card_picked(_smoke_pick_index())  # 截图模式自动选卡，进入波次以便目视小怪
 		if _shot_phase == 0 and _shot_t > 1.2:
 			_shot_phase = 1
-			_save_shot("shot_menu.png")
+			if not _save_shot("shot_menu.png"):
+				get_tree().quit(1)
+				return
 			_menu_start()
 			_shot_t = 0.0
 		elif _shot_phase == 1 and _shot_t > 4.5:
 			_shot_phase = 2
-			_save_shot("shot_game.png")
+			if not _save_shot("shot_game.png"):
+				get_tree().quit(1)
+				return
 			print("SHOT_OK")
 			get_tree().quit()
 			return
@@ -257,11 +265,11 @@ func _process(delta: float) -> void:
 						spawn_t = spawn_interval
 						if to_spawn > 0:
 							to_spawn -= 1
-						if enemies_alive < mob_cap + 4:
+						if enemies_alive < mob_cap:
 							_spawn_enemy()
 					if time_left <= 0.0:
 						_wave_time_up()
-			# 首领波无计时：由 _on_boss_killed 推进
+			# 首领波无计时：由统一 encounter 完成信号推进
 		"draft", "startpick":
 			if smoke:
 				_smoke_pick_t -= delta
@@ -414,6 +422,11 @@ func _buy_forging() -> void:
 # ---- 单局流程 ----
 
 func _start_run() -> void:
+	var stale_encounter := _boss_encounter
+	_boss_encounter = null
+	if stale_encounter != null and is_instance_valid(stale_encounter):
+		stale_encounter.abort("run_restarted")
+		stale_encounter.queue_free()
 	run_coins = 0
 	kills = 0
 	region_i = 0
@@ -421,7 +434,8 @@ func _start_run() -> void:
 	is_boss_wave = false
 	enemies_alive = 0
 	boss_ref = null
-	_boss_encounter = null
+	_endless = false
+	_endless_boss_n = 0
 	_first_draft_done = false
 	xp_accum = 0
 	player_level = 1
@@ -462,11 +476,21 @@ func _start_run() -> void:
 	if not meta_d.get("tutorial_done", false):
 		ui.show_hint("移动：WASD / 方向键 · 攻击全自动 · ESC 暂停", 6.0)
 
-func _save_shot(fname: String) -> void:
+func _save_shot(fname: String) -> bool:
+	if DisplayServer.get_name() == "headless":
+		push_error("SHOT_FAILED: --shot requires a real display; do not combine it with --headless")
+		return false
 	var img := get_viewport().get_texture().get_image()
+	if img == null or img.is_empty():
+		push_error("SHOT_FAILED: viewport image is unavailable")
+		return false
 	var path := "user://" + fname  # 导出后 res:// 不可写，统一存 AppData
-	img.save_png(path)
+	var error := img.save_png(path)
+	if error != OK:
+		push_error("SHOT_FAILED: cannot save %s (error %d)" % [path, error])
+		return false
 	print("SHOT_SAVED ", ProjectSettings.globalize_path(path), " ", img.get_width(), "x", img.get_height())
+	return true
 
 func _start_inter(t: float) -> void:
 	inter_t = t
@@ -533,6 +557,25 @@ func _cb_volume(v: float) -> void:
 func _safe_reg() -> Dictionary:
 	return regions[mini(region_i, regions.size() - 1)]
 
+
+func _campaign_regular_wave_count() -> int:
+	var total := 0
+	for reg in regions:
+		total += int(reg["waves"])
+	return total
+
+
+func _spawn_density_multiplier() -> float:
+	if _endless:
+		return SpawnCurveS.ENDLESS_MULTIPLIER
+	return SpawnCurveS.campaign_multiplier(_waves_cleared() + 1, _campaign_regular_wave_count())
+
+
+func _register_enemy_spawned() -> void:
+	enemies_alive += 1
+	peak_enemies_alive = maxi(peak_enemies_alive, enemies_alive)
+
+
 func _start_wave() -> void:
 	var reg: Dictionary = _safe_reg()
 	_set_mobs_frozen(false)
@@ -545,17 +588,22 @@ func _start_wave() -> void:
 		boss = true  # 无尽：每 6 波一只随机增强首领
 	if boss:
 		is_boss_wave = true
-		_spawn_boss(reg)
+		var boss_result := _spawn_boss(reg)
+		if boss_result != OK:
+			_abort_boss_start(boss_result)
+			return
 		ui.update_wave(("无尽 · " if _endless else "") + "区域 %s · 首领！" % reg["name"])
 		ui.flash_banner("首领来袭！")
 	else:
 		is_boss_wave = false
-		# 威胁预算：刷怪数与精英率随玩家等级上浮（杀得越多怪越多，强度跟随的机制化）
+		# 威胁预算先跟随玩家等级，再叠加全局战役密度曲线；最终由 SpawnCurve 硬上限保护。
 		var budget_mult := minf(1.0 + 0.12 * (player_level - 1), 1.8)
-		mob_cap = clampi(int(round((4 + wave_i * 2) * budget_mult)), 8, 32)
+		var base_mob_cap := clampi(int(round((4 + wave_i * 2) * budget_mult)), 8, 32)
+		current_spawn_multiplier = _spawn_density_multiplier()
+		mob_cap = SpawnCurveS.scaled_density(base_mob_cap, current_spawn_multiplier)
 		to_spawn = mob_cap
 		var spawn_window := 10.0 + wave_i * 2.0  # 出怪提速：波前段密集刷完，前期节奏明显加快
-		spawn_interval = maxf(spawn_window / to_spawn, 0.3)
+		spawn_interval = SpawnCurveS.interval_for(spawn_window, to_spawn)
 		spawn_t = 0.3
 		current_elite_chance = minf(ELITE_CHANCE + 0.012 * (player_level - 1), 0.22)
 		time_left = WAVE_TIME
@@ -574,6 +622,8 @@ func _set_mobs_frozen(f: bool) -> void:
 	for b in get_tree().get_nodes_in_group("bullets"):
 		if is_instance_valid(b):
 			b.set_physics_process(not f)
+	if is_instance_valid(_boss_encounter):
+		_boss_encounter.set_process(not f)
 
 func _edge_point() -> Vector2:
 	match randi() % 4:
@@ -620,8 +670,7 @@ func _spawn_enemy() -> void:
 	e.position = _edge_point()
 	e.killed.connect(_on_enemy_killed)
 	add_child(e)
-	enemies_alive += 1
-	to_spawn -= 1
+	_register_enemy_spawned()
 
 func _wave_tier() -> int:
 	# 区域各跨两档：波次前半低档、后半高档（白白绿 → 蓝蓝橙橙 → 红红红金金）
@@ -656,100 +705,151 @@ func _summon_minion(pos: Vector2, kind: String, elite: bool) -> void:
 	e.xp = int(t["xp"]) * (3 if elite else 1)
 	e.coin = 3 if elite else 1
 	e.radius = 20.0 if elite else 14.0
-	e.position = pos.clamp(ARENA.position + Vector2.ONE * 30.0, ARENA.end - Vector2.ONE * 30.0)
+	var local_pos := to_local(pos)
+	e.position = local_pos.clamp(ARENA.position + Vector2.ONE * 30.0, ARENA.end - Vector2.ONE * 30.0)
 	e.killed.connect(_on_enemy_killed)
 	e.add_to_group("minions")
 	add_child(e)
-	enemies_alive += 1
+	_register_enemy_spawned()
 
-func _spawn_boss(reg: Dictionary) -> void:
-	_boss_refs = []
-	if not _endless and region_i == 0:
-		_spawn_region_one_boss()
-		return
-	if not _endless and region_i == 1:
-		_spawn_region_two_boss()
-		return
+
+func _living_minion_count() -> int:
+	var count := 0
+	for minion in get_tree().get_nodes_in_group("minions"):
+		if is_instance_valid(minion) and not minion.is_queued_for_deletion():
+			count += 1
+	return count
+
+func _spawn_boss(reg: Dictionary) -> Error:
 	if _endless:
-		# 无尽：随机三首领之一，血量随次数增强
-		var b0
-		match randi() % 3:
-			0:
-				b0 = BossS.new()
-			1:
-				b0 = BossSpitterS.new()
-				b0.ebullet_spawner = _spawn_ebullet
-			_:
-				b0 = BossSummonerS.new()
-				b0.summon_cb = _summon_minion
-		_endless_boss_n += 1
-		b0.max_hp = float(reg["boss_hp"]) * (1.6 + 0.8 * _endless_boss_n)
-		b0.coin = 25
-		_setup_boss(b0)
-	else:
-		# 区域 3：激光×2、生命 ×1.5
-		var b3 := _setup_boss(BossSummonerS.new())
-		b3.summon_cb = _summon_minion
-		b3.laser_mult = 2.0
-	ui.show_boss()
+		return _spawn_endless_boss(reg)
+	match region_i:
+		0:
+			return _spawn_region_one_boss()
+		1:
+			return _spawn_region_two_boss()
+		2:
+			return _spawn_region_three_boss()
+	return ERR_INVALID_DATA
 
-func _spawn_region_one_boss() -> void:
+
+func _make_boss_context(
+		spawn_position: Vector2,
+		mode: BossEncounterContext.Mode = BossEncounterContext.Mode.CAMPAIGN,
+		endless_rank: int = 0,
+		base_hp_override: float = -1.0
+) -> BossEncounterContext:
 	var context := BossEncounterContext.new()
+	context.mode = mode
 	context.region_index = region_i
+	context.endless_rank = endless_rank
 	context.arena = ARENA
-	context.spawn_position = _edge_point()
+	context.spawn_position = spawn_position
 	context.player = player
+	context.base_hp_override = base_hp_override
 	context.rng.seed = randi()
-
-	var encounter := BossEncounterS.new() as BossEncounterController
-	encounter.boss_spawned.connect(_on_encounter_boss_spawned)
-	encounter.primary_changed.connect(_on_encounter_primary_changed)
-	encounter.health_changed.connect(_on_encounter_health_changed)
-	encounter.member_defeated.connect(_on_encounter_member_defeated)
-	encounter.completed.connect(_on_boss_encounter_completed)
-	add_child(encounter)
-	var result := encounter.start_single(ChargeBossDefinition, context, BossServices.new())
-	if result != OK:
-		encounter.queue_free()
-		push_error("Region 1 boss encounter failed to start: %s" % error_string(result))
-		return
-	_boss_encounter = encounter
-	ui.show_boss()
+	return context
 
 
-func _spawn_region_two_boss() -> void:
-	var contexts: Array[BossEncounterContext] = []
-	for offset_x in [-160.0, 160.0]:
-		var context := BossEncounterContext.new()
-		context.region_index = region_i
-		context.arena = ARENA
-		context.spawn_position = ARENA.get_center() + Vector2(offset_x, 0.0)
-		context.player = player
-		context.rng.seed = randi()
-		contexts.append(context)
-
+func _make_boss_services() -> BossServices:
 	var services := BossServices.new()
 	services.spawn_enemy_projectile = _spawn_ebullet
-	var encounter := TwinBossEncounterS.new() as TwinBossEncounterController
+	services.spawn_minion = _summon_minion
+	services.living_minion_count = _living_minion_count
+	return services
+
+
+func _connect_boss_encounter(encounter: BossEncounterController) -> void:
 	encounter.boss_spawned.connect(_on_encounter_boss_spawned)
 	encounter.primary_changed.connect(_on_encounter_primary_changed)
 	encounter.health_changed.connect(_on_encounter_health_changed)
 	encounter.member_defeated.connect(_on_encounter_member_defeated)
 	encounter.completed.connect(_on_boss_encounter_completed)
+	encounter.aborted.connect(_on_boss_encounter_aborted)
+
+
+func _start_single_boss_encounter(definition: BossDefinition, context: BossEncounterContext) -> Error:
+	var encounter := BossEncounterS.new() as BossEncounterController
+	_connect_boss_encounter(encounter)
+	add_child(encounter)
+	var result := encounter.start_single(definition, context, _make_boss_services())
+	if result != OK:
+		encounter.queue_free()
+		push_error("Boss encounter failed to start: %s" % error_string(result))
+		return result
+	_boss_encounter = encounter
+	ui.show_boss()
+	return OK
+
+func _spawn_region_one_boss() -> Error:
+	return _start_single_boss_encounter(ChargeBossDefinition, _make_boss_context(_edge_point()))
+
+
+func _spawn_region_two_boss() -> Error:
+	var contexts: Array[BossEncounterContext] = []
+	for offset_x in [-160.0, 160.0]:
+		contexts.append(_make_boss_context(ARENA.get_center() + Vector2(offset_x, 0.0)))
+
+	var encounter := TwinBossEncounterS.new() as TwinBossEncounterController
+	_connect_boss_encounter(encounter)
 	encounter.revive_window_started.connect(_on_twin_revive_window_started)
 	encounter.member_revived.connect(_on_twin_member_revived)
 	add_child(encounter)
-	var result := encounter.start_twins(SpitterBossDefinition, contexts, services)
+	var result := encounter.start_twins(SpitterBossDefinition, contexts, _make_boss_services())
 	if result != OK:
 		encounter.queue_free()
 		push_error("Region 2 boss encounter failed to start: %s" % error_string(result))
-		return
+		return result
 	_boss_encounter = encounter
 	ui.show_boss()
+	return OK
 
-func _on_encounter_boss_spawned(boss: BossBase) -> void:
-	_boss_refs.append(boss)
-	enemies_alive += 1
+
+func _spawn_region_three_boss() -> Error:
+	return _start_single_boss_encounter(SummonerBossDefinition, _make_boss_context(_edge_point()))
+
+
+func _endless_boss_definitions() -> Array[BossDefinition]:
+	return [
+		ChargeBossDefinition,
+		SpitterBossDefinition,
+		SummonerBossDefinition,
+	]
+
+
+func _start_endless_boss(definition: BossDefinition, reg: Dictionary) -> Error:
+	if definition == null or not reg.has("boss_hp"):
+		return ERR_INVALID_PARAMETER
+	var next_rank := _endless_boss_n + 1
+	var context := _make_boss_context(
+		_edge_point(),
+		BossEncounterContext.Mode.ENDLESS,
+		next_rank,
+		float(reg["boss_hp"])
+	)
+	var result := _start_single_boss_encounter(definition, context)
+	if result == OK:
+		_endless_boss_n = next_rank
+	return result
+
+
+func _spawn_endless_boss(reg: Dictionary) -> Error:
+	var definitions := _endless_boss_definitions()
+	return _start_endless_boss(definitions[randi() % definitions.size()], reg)
+
+
+func _abort_boss_start(result: Error) -> void:
+	is_boss_wave = false
+	player.active = false
+	state = "over"
+	ui.hide_boss()
+	ui.show_over("首领加载失败（%s）。\n按 R 重试" % error_string(result))
+	push_error("Boss wave aborted because encounter startup failed: %s" % error_string(result))
+	if smoke:
+		_smoke_finish("boss_start_fail")
+
+func _on_encounter_boss_spawned(_boss: BossBase) -> void:
+	_register_enemy_spawned()
 
 func _on_encounter_primary_changed(boss: BossBase) -> void:
 	boss_ref = boss
@@ -775,33 +875,47 @@ func _on_boss_encounter_completed(defeated_count: int, reward_coin: int, reward_
 	kills += defeated_count
 	run_coins += reward_coin
 	ui.update_coins(run_coins)
-	add_xp(reward_xp)
+	add_xp(reward_xp, false)
 	boss_ref = null
 	if _boss_encounter != null:
 		_boss_encounter.queue_free()
 		_boss_encounter = null
 	_finish_boss_wave()
 
-func _setup_boss(b) -> Node2D:
-	# 全首领统一强化乘区（第八轮 playtest）：血×2、护甲×1.5、移速×1.2
-	b.player = player
-	b.arena = ARENA
-	b.max_hp *= 2.0
-	b.hp = b.max_hp
-	b.armor = b.armor * 1.5 + 2.0
-	b.speed *= 1.2
-	if b.position == Vector2.ZERO:
-		b.position = _edge_point()
-	b.killed.connect(_on_boss_killed)
-	add_child(b)
-	_boss_refs.append(b)
-	boss_ref = b
-	enemies_alive += 1
-	return b
+
+func _on_boss_encounter_aborted(reason: String) -> void:
+	_fail_boss_encounter(reason)
+
+
+func _fail_boss_encounter(reason: String, report_error := true) -> void:
+	if _boss_encounter == null or state in ["over", "win"]:
+		return
+	var aborted_encounter := _boss_encounter
+	_boss_encounter = null
+	boss_ref = null
+	is_boss_wave = false
+	player.active = false
+	state = "over"
+	ui.hide_boss()
+	ui.show_over("首领战异常中止（%s）。\n按 R 重试" % reason)
+	if report_error:
+		push_error("Boss encounter aborted: %s" % reason)
+	aborted_encounter.queue_free()
+	_clear_boss_wave_nodes()
+	if smoke:
+		_smoke_finish("boss_abort")
+
+
+func _clear_boss_wave_nodes() -> void:
+	for group_name in ["enemies", "bullets"]:
+		for node in get_tree().get_nodes_in_group(group_name):
+			if is_instance_valid(node):
+				node.queue_free()
+	enemies_alive = 0
 
 func _spawn_bullet(pos: Vector2, dir: Vector2, dmg: float, pierce: int, bounce: int, from_player: Node2D) -> void:
 	var b := BulletS.new()
-	b.position = pos
+	b.position = to_local(pos)
 	b.dir = dir
 	b.dmg = dmg
 	b.pierce_left = pierce
@@ -821,7 +935,7 @@ func _spawn_boomerang(pos: Vector2, dir: Vector2, dmg: float, from_player: Node2
 
 func _spawn_ebullet(pos: Vector2, dir: Vector2, spd: float, dmg: float) -> void:
 	var b := EBulletS.new()
-	b.position = pos
+	b.position = to_local(pos)
 	b.dir = dir
 	b.speed = spd
 	b.dmg = dmg
@@ -833,7 +947,7 @@ func _card_pool() -> Array:
 	return Cards.all_cards().filter(func(c): return bool(c.get("m0", false)) or c["id"] in unlocked)
 
 func _on_enemy_killed(coin_value: int, pos: Vector2, xp_value: int) -> void:
-	enemies_alive -= 1
+	enemies_alive = maxi(0, enemies_alive - 1)
 	kills += 1
 	player.on_kill()
 	add_xp(xp_value)
@@ -867,7 +981,7 @@ func _xp_needed() -> int:
 	var l := player_level - 1
 	return 12 + 6 * l + 2 * l * l
 
-func add_xp(n: int) -> void:
+func add_xp(n: int, enter_draft_immediately := true) -> void:
 	if n <= 0:
 		return
 	xp_accum += n
@@ -876,7 +990,7 @@ func add_xp(n: int) -> void:
 		player_level += 1
 		pending_picks += 1
 	ui.update_xp(player_level, xp_accum, _xp_needed())
-	if pending_picks > 0 and state == "wave":
+	if enter_draft_immediately and pending_picks > 0 and state == "wave":
 		_enter_draft()  # 升级瞬间弹卡（冻结全场含玩家）
 
 func _wave_time_up() -> void:
@@ -885,36 +999,11 @@ func _wave_time_up() -> void:
 	ui.update_coins(run_coins)
 	_start_inter(0.5)
 
-func _on_boss_killed(coin_value: int, _pos: Vector2, _xp_value: int) -> void:
-	# 首领波唯一出口：打完首领才换图/推进无尽；残怪随首领死亡清空，绝不跨地图带入
-	kills += 1
-	run_coins += coin_value
-	ui.update_coins(run_coins)
-	add_xp(BOSS_XP)
-	# 多首领门禁（区域 2 双吐弹）：仍有存活首领 → 只结算此只，不清场不推进，等连锁击杀
-	var survivor: Node2D = null
-	for b in _boss_refs:
-		if b != null and is_instance_valid(b) and not b._dead:
-			survivor = b
-			break
-	if survivor != null:
-		boss_ref = survivor  # HUD 血条跟随存活者
-		ui.show_boss()
-		ui.flash_banner("双首领：10 秒内击杀另一只！")
-		return
-	_finish_boss_wave()
-
 func _finish_boss_wave() -> void:
-	# 首领战的单一推进出口；新旧 Boss 路径在此之后共享完全相同的清场与区域流转。
+	# 首领战的单一推进出口；所有 Boss 共享相同的清场与区域流转。
 	boss_ref = null
 	ui.hide_boss()
-	for e in get_tree().get_nodes_in_group("enemies"):
-		if is_instance_valid(e):
-			e.queue_free()
-	for b in get_tree().get_nodes_in_group("bullets"):
-		if is_instance_valid(b):
-			b.queue_free()
-	enemies_alive = 0
+	_clear_boss_wave_nodes()
 	wave_i = 0
 	if _endless:
 		region_i = regions.size() - 1  # 无尽钳在最后一图，防 region_i 无限自增越界
@@ -1034,6 +1123,13 @@ func _on_player_died() -> void:
 
 func _finish(result: String) -> void:
 	state = result
+	var active_encounter := _boss_encounter
+	_boss_encounter = null
+	if active_encounter != null and is_instance_valid(active_encounter):
+		active_encounter.abort("run_finished")
+		active_encounter.queue_free()
+	boss_ref = null
+	ui.hide_boss()
 	player.active = false
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if is_instance_valid(e):
@@ -1098,19 +1194,26 @@ func _death_pity() -> int:
 
 func _smoke_finish(result: String) -> void:
 	if soak:
+		if result != "win":
+			print("SOAK_FAIL cycle=%d/%d result=%s nodes=%d" % [_soak_done + 1, SOAK_CYCLES, result, get_tree().get_node_count()])
+			_soak_done = 0
+			get_tree().quit(1)
+			return
 		_soak_done += 1
 		print("SOAK cycle=%d/%d result=%s nodes=%d" % [_soak_done, SOAK_CYCLES, result, get_tree().get_node_count()])
 		if _soak_done >= SOAK_CYCLES:
 			print("SOAK_OK")
-			get_tree().quit()
+			_soak_done = 0
+			get_tree().quit(0)
 			return
 		get_tree().reload_current_scene()
 		return
-	print("SMOKE_OK result=%s region=%d wave=%d kills=%d run_coins=%d buy_card=%s buy_level=%s buy_pick=%s wtest=%s meta_coins=%d t_ms=%d" % [
-		result, region_i, wave_i, kills, run_coins,
+	var marker := "SMOKE_OK" if result == "win" else "SMOKE_FAIL"
+	print("%s result=%s region=%d wave=%d kills=%d peak_enemies=%d spawn_mult=%.2f run_coins=%d buy_card=%s buy_level=%s buy_pick=%s wtest=%s meta_coins=%d t_ms=%d" % [marker,
+		result, region_i, wave_i, kills, peak_enemies_alive, current_spawn_multiplier, run_coins,
 		str(_smoke_buys["card"]), str(_smoke_buys["level"]), str(_smoke_buys["pick"]),
 		str(_smoke_wtest_done), int(meta_d.get("coins", 0)), Time.get_ticks_msec() - _t0])
-	get_tree().quit()
+	get_tree().quit(0 if result == "win" else 1)
 
 # ---- 平衡模拟（--sim）：与刷怪/经济共用同一组常量的解析模型 ----
 # 假设：已清波全杀、死亡波击杀 50%、未计召唤物/磁石/黄金子弹（基线）
@@ -1149,7 +1252,7 @@ func _run_sim() -> void:
 	var ok := min_r2 >= 0.4 and max_ratio <= 1.05
 	print("SIM win=%.1f min_r2_ratio=%.2f max_ratio=%.2f invariants=%s" % [win, min_r2, max_ratio, "pass" if ok else "FAIL"])
 	print("SIM_OK" if ok else "SIM_FAIL")
-	get_tree().quit()
+	get_tree().quit(0 if ok else 1)
 
 # ---- smoke 自检：静止假人依次验证 回旋镖/电弧/环刃 可造成伤害，敌弹可命中玩家 ----
 

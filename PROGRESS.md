@@ -1,5 +1,28 @@
 # 进度日志 — 每次收工追加 ≤5 行，倒序排列
 
+## 2026-09-20（第二十三次收工：刷怪密度曲线与散弹击退）
+- 新增独立 `SpawnCurve`：前两波 1.2×，中期 1.30→1.85×，第 9 波起 2.0→2.3×，无尽 2.3×；活动普通敌人硬上限 64、刷怪间隔下限 0.16 秒。
+- 散弹命中击退 130→155（约 +19%），其余武器保持 130；命中服务参数化，并修复测试暴露的 GDScript `bool` 构造错误。
+- 新增 `SPAWN_CURVE_OK` 并接入 CI；Godot 日志出现 `SCRIPT ERROR` / `ERROR:` 即失败；`--shot` 与 Windows 导出不再假绿。
+- 验证：import、9 项独立回归、`BOSS_TEST_OK`、`SMOKE_OK`（598 击杀 / 峰值 17 / 64.3 秒）、`SIM_OK`、`SOAK_OK`（535–593 节点）、真实 `SHOT_OK`、导出 EXE `SMOKE_OK`（581 击杀 / 峰值 24）；`git diff --check` 通过。
+
+## 2026-09-20（第二十二次收工：demo 阶段复盘与范围冻结建议）
+- 复跑当前工作树：import、BOSS_TEST、SAWBLADE_COOLDOWN、SMOKE、SIM、SOAK、SHOT 全部通过；soak 需约 5 分钟，240s 超时但非逻辑失败。
+- 视觉抽查菜单与早期战斗截图：像素风和主循环可读，仍为占位/灰盒表现；M2.5 第 2 轮与 M3 正式美术、商店素材、trailer 尚未闭环。
+- 结论：冻结 Boss/新机制，先完成真人 playtest→数值/引导收敛→Windows clean build/install 验证；Issue #7 暂不执行。
+- 待 Roy 决策：GDD 单局时长 12–16 分钟与不变量 15–20 分钟统一后再改平衡。
+
+## 2026-09-20（第二十一次收工：Boss 框架闭环与无尽统一）
+- 战役与无尽共用生产 BossDefinition、Controller、Services；移除三套并行旧脚本，异常退出 fail-closed，逻辑槽位奖励一次性。
+- 修复双生复活坐标/计时、Boss 升级双进选牌、召唤节拍/上限、环刃缓存、敌弹/召唤坐标及中止遭遇残留节点；补 Main 级契约。
+- 新增统一 `--boss-test`（7 项 Boss/集成契约，成功标记 `BOSS_TEST_OK`）；另含环刃回归，共 8 项核心回归。
+- 验证：import、8 项核心回归、SMOKE_OK、SIM_OK、SOAK_OK、SHOT_OK、CI YAML 与 git diff --check 全绿。
+
+## 2026-09-18（第二十次收工：Boss 框架批次 5 与仓库级调试）
+- 区域 3 召唤首领迁入独立定义、场景和服务边界；移除战役激光，召唤成对计数保持 8 只上限并使用独立随机位置。
+- 修复环刃逐目标冷却缓存泄漏、双生复活重复奖励、首领生成失败软锁和选牌期间复活计时继续推进。
+- Smoke/Soak/Sim 失败现返回非零；Windows CI 纳入导入、Boss 契约、召唤、环刃与模拟回归。
+
 ## 2026-09-16（第十九次收工：Boss 框架批次 4）
 - 新增 SpitterBoss 独立场景与资源；弹道通过 BossServices 注入，表现层继续保留 Artwork、AnimationPlayer、语义锚点和 TelegraphLayer。
 - 新增 TwinBossEncounterController：复活窗口、逻辑槽位替换和连锁重开均由遭遇层管理，聚合血条上限固定；Main 只负责生成入口、奖励与 UI/SFX 响应。

@@ -1,0 +1,28 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/bosses/summoner_boss.gd" id="1_summoner"]
+[ext_resource type="Script" path="res://scripts/bosses/boss_visual.gd" id="2_visual"]
+
+[node name="SummonerBoss" type="Node2D"]
+script = ExtResource("1_summoner")
+
+[node name="VisualRoot" type="Node2D" parent="."]
+script = ExtResource("2_visual")
+skin_name = &"boss_summoner"
+
+[node name="Placeholder" type="Polygon2D" parent="VisualRoot"]
+
+[node name="Artwork" type="Sprite2D" parent="VisualRoot"]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="VisualRoot"]
+
+[node name="Anchors" type="Node2D" parent="."]
+
+[node name="Center" type="Marker2D" parent="Anchors"]
+
+[node name="ProjectileOrigin" type="Marker2D" parent="Anchors"]
+position = Vector2(28, 0)
+
+[node name="EffectOrigin" type="Marker2D" parent="Anchors"]
+
+[node name="TelegraphLayer" type="Node2D" parent="."]

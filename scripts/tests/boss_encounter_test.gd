@@ -14,6 +14,8 @@ var _completed_count := 0
 var _defeated_count := 0
 var _reward_coin := 0
 var _reward_xp := 0
+var _aborted_count := 0
+var _abort_reason := ""
 
 
 func _init() -> void:
@@ -71,6 +73,7 @@ func _run() -> void:
 	encounter.queue_free()
 	await process_frame
 	await _run_multi_member_contract(definition, player)
+	await _run_abort_contract(definition, player)
 	player.queue_free()
 	await process_frame
 	_finish()
@@ -121,6 +124,40 @@ func _run_multi_member_contract(definition: BossDefinition, player: Node2D) -> v
 	_expect(not _health_samples.is_empty() and _health_samples[-1] == Vector2(0.0, 1680.0), "aggregate HUD reaches zero without shrinking")
 
 	await process_frame
+	encounter.queue_free()
+	await process_frame
+
+
+func _run_abort_contract(definition: BossDefinition, player: Node2D) -> void:
+	_completed_count = 0
+	_aborted_count = 0
+	_abort_reason = ""
+
+	var context := BossEncounterContext.new()
+	context.region_index = 0
+	context.arena = Rect2(40.0, 40.0, 1200.0, 640.0)
+	context.spawn_position = Vector2(640.0, 120.0)
+	context.player = player
+	context.rng.seed = 91
+
+	var encounter := BossEncounterController.new()
+	encounter.completed.connect(_on_completed)
+	encounter.aborted.connect(func(reason: String):
+		_aborted_count += 1
+		_abort_reason = reason
+	)
+	root.add_child(encounter)
+	var result := encounter.start_single(definition, context, BossServices.new())
+	_expect(result == OK, "abort contract encounter starts")
+	var boss := encounter.primary_boss()
+	if boss != null:
+		boss.queue_free()
+	await process_frame
+	await process_frame
+	_expect(_aborted_count == 1, "unexpected member exit aborts exactly once")
+	_expect(_abort_reason == "boss_exited_unexpectedly", "unexpected member exit reports a stable reason")
+	_expect(_completed_count == 0, "aborted encounter cannot complete")
+	_expect(encounter.living_count() == 0 and encounter.primary_boss() == null, "abort clears the living roster")
 	encounter.queue_free()
 	await process_frame
 

@@ -5,6 +5,7 @@ extends RefCounted
 
 var spawn_enemy_projectile := Callable()
 var spawn_minion := Callable()
+var living_minion_count := Callable()
 
 
 func has_service(service_name: StringName) -> bool:
@@ -13,6 +14,8 @@ func has_service(service_name: StringName) -> bool:
 			return spawn_enemy_projectile.is_valid()
 		&"spawn_minion":
 			return spawn_minion.is_valid()
+		&"living_minion_count":
+			return living_minion_count.is_valid()
 		_:
 			return false
 

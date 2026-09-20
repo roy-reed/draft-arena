@@ -14,6 +14,9 @@ var _defeated_count := 0
 var _reward_coin := 0
 var _reward_xp := 0
 var _revived_count := 0
+var _aborted_count := 0
+var _translated_revived_local := Vector2(1e20, 1e20)
+var _translated_revived_global := Vector2(1e20, 1e20)
 
 
 func _init() -> void:
@@ -63,6 +66,10 @@ func _run() -> void:
 	_expect(encounter.living_count() == 1 and _completed_count == 0, "first defeat opens revive window")
 	_expect(_health_samples[-1] == Vector2(1580.0, 3160.0), "defeated slot remains in HUD maximum")
 
+	encounter.set_process(false)
+	await create_timer(0.06).timeout
+	_expect(_revived_count == 0 and encounter.living_count() == 1, "paused encounter freezes revive window")
+	encounter.set_process(true)
 	await create_timer(0.06).timeout
 	_expect(_revived_count == 1, "defeated twin revives after the window")
 	_expect(encounter.total_count() == 2 and encounter.living_count() == 2, "revival replaces its logical slot")
@@ -76,15 +83,105 @@ func _run() -> void:
 	if last != null:
 		last.take_damage(99999.0, player)
 	_expect(_completed_count == 1, "killing both inside the window completes exactly once")
-	_expect(_defeated_count == 3, "completion includes the pre-revival defeat")
-	_expect(_reward_coin == 45 and _reward_xp == 360, "all defeated members contribute rewards exactly once")
+	_expect(_defeated_count == 2, "completion counts two rewarded logical slots")
+	_expect(_reward_coin == 30 and _reward_xp == 240, "a revived slot cannot pay its reward twice")
 	_expect(_health_samples[-1] == Vector2(0.0, 3160.0), "final HUD reaches zero across two logical slots")
 
 	await process_frame
 	encounter.queue_free()
+	await process_frame
+	await _run_translated_revive_contract(definition, player, services)
+	await _run_abort_contract(definition, player, services)
 	player.queue_free()
 	await process_frame
 	_finish()
+
+
+func _run_translated_revive_contract(definition: BossDefinition, player: Node2D, services: BossServices) -> void:
+	_translated_revived_local = Vector2(1e20, 1e20)
+	_translated_revived_global = Vector2(1e20, 1e20)
+	var contexts: Array[BossEncounterContext] = []
+	for i in 2:
+		var context := BossEncounterContext.new()
+		context.region_index = 1
+		context.arena = Rect2(40.0, 40.0, 1200.0, 640.0)
+		context.spawn_position = Vector2(480.0 + 320.0 * i, 160.0)
+		context.player = player
+		context.rng.seed = 230 + i
+		contexts.append(context)
+
+	var encounter := TwinBossEncounterController.new()
+	encounter.position = Vector2(137.0, 91.0)
+	encounter.revive_delay = 0.02
+	root.add_child(encounter)
+	var result := encounter.start_twins(definition, contexts, services)
+	_expect(result == OK, "translated twin encounter starts")
+	var defeated := encounter.primary_boss()
+	if defeated != null:
+		defeated.take_damage(99999.0, player)
+	var survivor := encounter.primary_boss()
+	_expect(survivor != null, "translated encounter keeps one survivor")
+	if survivor == null:
+		encounter.queue_free()
+		await process_frame
+		return
+	survivor.set_physics_process(false)
+	var expected_local := (survivor.position + Vector2(90.0, 0.0)).clamp(
+		contexts[0].arena.position + Vector2.ONE * 40.0,
+		contexts[0].arena.end - Vector2.ONE * 40.0
+	)
+	encounter.member_revived.connect(func(): _capture_translated_revive(encounter, survivor))
+	await create_timer(0.06).timeout
+	_expect(_translated_revived_local.distance_to(expected_local) < 0.01, "revived twin uses encounter-local spawn coordinates")
+	_expect(_translated_revived_global.distance_to(encounter.to_global(expected_local)) < 0.01, "translated encounter applies its transform exactly once")
+	encounter.abort("translated_contract_done")
+	encounter.queue_free()
+	await process_frame
+
+
+func _capture_translated_revive(encounter: TwinBossEncounterController, survivor: BossBase) -> void:
+	for child in encounter.get_children():
+		if child is BossBase and child != survivor and not child.is_queued_for_deletion() and child.hp > 0.0:
+			child.set_physics_process(false)
+			_translated_revived_local = child.position
+			_translated_revived_global = child.global_position
+			return
+
+
+func _run_abort_contract(definition: BossDefinition, player: Node2D, services: BossServices) -> void:
+	_completed_count = 0
+	_revived_count = 0
+	_aborted_count = 0
+	var contexts: Array[BossEncounterContext] = []
+	for i in 2:
+		var context := BossEncounterContext.new()
+		context.region_index = 1
+		context.arena = Rect2(40.0, 40.0, 1200.0, 640.0)
+		context.spawn_position = Vector2(480.0 + 320.0 * i, 160.0)
+		context.player = player
+		context.rng.seed = 130 + i
+		contexts.append(context)
+
+	var encounter := TwinBossEncounterController.new()
+	encounter.revive_delay = 0.02
+	encounter.member_revived.connect(func(): _revived_count += 1)
+	encounter.completed.connect(_on_completed)
+	encounter.aborted.connect(func(_reason: String): _aborted_count += 1)
+	root.add_child(encounter)
+	var result := encounter.start_twins(definition, contexts, services)
+	_expect(result == OK, "abort contract twin encounter starts")
+	var first := encounter.primary_boss()
+	if first != null:
+		first.take_damage(99999.0, player)
+	_expect(encounter.living_count() == 1, "abort contract opens a revive window")
+	encounter.abort("run_finished")
+	await create_timer(0.06).timeout
+	_expect(_aborted_count == 1, "explicit abort fires exactly once")
+	_expect(_completed_count == 0, "aborted twin encounter cannot complete")
+	_expect(_revived_count == 0, "aborted twin encounter cannot revive")
+	_expect(encounter.living_count() == 0, "aborted twin encounter clears its roster")
+	encounter.queue_free()
+	await process_frame
 
 
 func _on_completed(defeated_count: int, reward_coin: int, reward_xp: int) -> void:

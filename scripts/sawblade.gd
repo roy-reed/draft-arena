@@ -19,6 +19,11 @@ var _gc_t := 0.0
 func _ready() -> void:
 	z_index = 6
 
+func _prune_invalid_cooldowns() -> void:
+	for tracked_enemy in _cds.keys():
+		if not is_instance_valid(tracked_enemy):
+			_cds.erase(tracked_enemy)
+
 func _sync_visual(count: int) -> void:
 	var evolved: bool = holder != null and is_instance_valid(holder) and holder.get("weapon_level") != null and int(holder.get("weapon_level")) >= 4
 	var blade_color := Color(1.0, 0.8, 0.25) if evolved else Color(0.85, 0.9, 1.0)
@@ -58,12 +63,13 @@ func _physics_process(delta: float) -> void:
 	if holder == null or not is_instance_valid(holder):
 		return
 	_gc_t += delta
+	if _gc_t > 5.0:
+		_prune_invalid_cooldowns()
+		_gc_t = 0.0
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if not is_instance_valid(e):
 			continue
 		_cds[e] = float(_cds.get(e, 0.0)) - delta
-		if _gc_t > 5.0 and not is_instance_valid(e):
-			_cds.erase(e)
 	for i in count:
 		var blade_pos: Vector2 = Vector2.RIGHT.rotated(_angle + TAU * i / count) * orbit_r
 		var wp: Vector2 = holder.position + blade_pos
@@ -76,5 +82,3 @@ func _physics_process(delta: float) -> void:
 				if dmg_cb.is_valid():
 					v = dmg_cb.call(v, e)
 				e.take_damage(v, holder)
-	if _gc_t > 5.0:
-		_gc_t = 0.0

@@ -9,12 +9,15 @@ signal primary_changed(boss: BossBase)
 signal health_changed(current: float, maximum: float)
 signal member_defeated(boss: BossBase, reward_coin: int, reward_xp: int)
 signal completed(defeated_count: int, reward_coin: int, reward_xp: int)
+signal aborted(reason: String)
 
 var _started := false
 var _completed := false
 var _members: Array[BossBase] = []
 var _living_members: Array[BossBase] = []
+var _living_member_ids := {}
 var _member_slots := {}
+var _rewarded_slots := {}
 var _slot_health: Array[float] = []
 var _slot_max_health: Array[float] = []
 var _defeated_count := 0
@@ -102,6 +105,23 @@ func total_count() -> int:
 	return _members.size()
 
 
+func abort(reason: String = "aborted") -> void:
+	if _completed:
+		return
+	_completed = true
+	set_process(false)
+	for boss in _living_members:
+		if is_instance_valid(boss):
+			boss.queue_free()
+	_living_members.clear()
+	_living_member_ids.clear()
+	for i in _slot_health.size():
+		_slot_health[i] = 0.0
+	primary_changed.emit(null)
+	_emit_health_snapshot()
+	aborted.emit(reason)
+
+
 func _register_member(boss: BossBase, slot: int = -1) -> void:
 	if slot < 0:
 		slot = _members.size()
@@ -113,9 +133,12 @@ func _register_member(boss: BossBase, slot: int = -1) -> void:
 		_slot_health[slot] = boss.hp
 		_slot_max_health[slot] = boss.max_hp
 	_living_members.append(boss)
-	_member_slots[boss.get_instance_id()] = slot
+	var member_id := boss.get_instance_id()
+	_living_member_ids[member_id] = true
+	_member_slots[member_id] = slot
 	boss.health_changed.connect(_on_boss_health_changed.bind(boss))
 	boss.defeated.connect(_on_boss_defeated)
+	boss.tree_exited.connect(_on_boss_tree_exited.bind(boss.get_instance_id()))
 	add_child(boss)
 	boss_spawned.emit(boss)
 	primary_changed.emit(primary_boss())
@@ -137,17 +160,35 @@ func _on_boss_defeated(boss: BossBase, reward_coin: int, reward_xp: int) -> void
 		return
 	_living_members.erase(boss)
 	var member_id := boss.get_instance_id()
+	_living_member_ids.erase(member_id)
+	var slot := -1
 	if _member_slots.has(member_id):
-		_slot_health[int(_member_slots[member_id])] = 0.0
-	_defeated_count += 1
-	_reward_coin += reward_coin
-	_reward_xp += reward_xp
-	member_defeated.emit(boss, reward_coin, reward_xp)
+		slot = int(_member_slots[member_id])
+		_slot_health[slot] = 0.0
+	var paid_coin := 0
+	var paid_xp := 0
+	# A logical encounter slot pays once. Revived replacements may reopen the
+	# fight, but cannot turn the revive loop into unlimited run rewards.
+	if slot >= 0 and not _rewarded_slots.has(slot):
+		_rewarded_slots[slot] = true
+		_defeated_count += 1
+		_reward_coin += reward_coin
+		_reward_xp += reward_xp
+		paid_coin = reward_coin
+		paid_xp = reward_xp
+	member_defeated.emit(boss, paid_coin, paid_xp)
 	primary_changed.emit(primary_boss())
 	_emit_health_snapshot()
 	if _living_members.is_empty():
 		_completed = true
+		set_process(false)
 		completed.emit(_defeated_count, _reward_coin, _reward_xp)
+
+
+func _on_boss_tree_exited(member_id: int) -> void:
+	if _completed or not _living_member_ids.has(member_id):
+		return
+	abort("boss_exited_unexpectedly")
 
 
 func _emit_health_snapshot() -> void:

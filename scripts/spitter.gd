@@ -31,4 +31,4 @@ func _physics_process(delta: float) -> void:
 func _fire() -> void:
 	if not ebullet_spawner.is_valid():
 		return
-	ebullet_spawner.call(position, (player.position - position).normalized(), 240.0, 8.0)
+	ebullet_spawner.call(global_position, (player.global_position - global_position).normalized(), 240.0, 8.0)

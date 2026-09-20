@@ -39,9 +39,9 @@ SFX.I.enabled = not smoke    # 再置开关；smoke/headless 下所有调用静�
 | hurt | `player.gd` `take_damage()`（`FX.shake(5.0)` 附近） | `SFX.play("hurt")` | 无敌帧提前 return，天然限频 |
 | pick | `main.gd` `_on_card_picked()`（state 校验通过后） | `SFX.play("pick")` | smoke 自动选牌时 enabled == false，静默 |
 | wave | `main.gd` `_wave_cleared()`（金币结算后） | `SFX.play("wave")` | 首领波清完进下一区域也会响；若嫌与 win 叠加，可移到非首领分支 |
-| boss | `main.gd` `_spawn_boss()`（`ui.show_boss()` 旁） | `SFX.play("boss")` | 三种首领共用一次触发，位于 main 侧无需区分类型 |
+| boss | `main.gd` `_start_wave()`（`_spawn_boss()` 成功返回后） | `SFX.play("boss")` | 三种首领共用一次触发，位于 main 侧无需区分类型 |
 | win / lose | `main.gd` `_finish()`（`ui.show_over` 之前） | `SFX.play("win" if result == "win" else "lose")` | 失败（"over"）与通关各一 |
-| dash | `boss.gd` `_physics_process()` "aim"→"dash" 切换处（`FX.shake(6.0)` 旁） | `SFX.play("dash")` | 冲锋起手；boss_spitter/boss_summoner 如有同类冲锋可类比接入 |
+| dash | `scripts/bosses/charge_boss.gd` `_physics_process()` "aim"→"dash" 切换处（`FX.shake(6.0)` 旁） | `SFX.play("dash")` | 冲锋起手；其他 Boss 若新增同类冲锋，可按语义状态接入 |
 | click | `ui.gd` `_fire_cb()` 开头 + `_on_draft_pressed()` | `SFX.play("click")` | CanvasLayer 内直接静态调用，无需持有 SFX 引用 |
 
 以上均为静态调用，任何脚本可直接使用，与 FX 的调用习惯一致。

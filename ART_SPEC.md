@@ -17,14 +17,14 @@
 | boss_spitter.png | 40×40 | 区域2 首领（吐弹型，水晶） |
 | boss_summoner.png | 40×40 | 区域3 首领（召唤型，法杖） |
 | menu_bg.png | 320×180 | 菜单主视觉（竞技场+三角色+怪群+火把，游戏内 4x Nearest 放大） |
-| floor_tile.png | 64×64 | 竞技场地砖（STRETCH_TILE 平铺，含网格线） |
+| floor_tile_r1.png / floor_tile_r2.png / floor_tile_r3.png | 64×64 | 三区域竞技场地砖（STRETCH_TILE 平铺，含网格线） |
 
 ## 硬性约定
 
 - **透明背景 PNG，RGBA**；项目已设全局 Nearest 过滤（`project.godot` →
   `rendering/textures/canvas_textures/default_texture_filter=0`），按逻辑像素画即可保证锐利，
   不要预放大。
-- 角色/小怪 16×16，首领 32×32；若做双帧动画（如 idle 两帧），改造成 `AnimatedSprite2D`
+- 角色 24×24、小怪 20×20、首领 40×40；若做双帧动画（如 idle 两帧），改造成 `AnimatedSprite2D`
   前先与 GDD 对齐工作量——M2 只替换单帧。
 - 调色板建议固定一套 ≤24 色（当前占位图用"主体+提亮+压暗+描边+白眼"五层），保证全图风格统一。
 - 面向朝向：当前游戏无朝向翻转，素材画正面/对称即可；后续加翻转需在 skin 加载处镜像。
