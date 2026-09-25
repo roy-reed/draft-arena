@@ -4,6 +4,9 @@
 The script deliberately creates no new gameplay art. It recomposes the existing
 menu key art, character sprites, bosses, and floor tile into the current Steam
 store and library dimensions using nearest-neighbour scaling only.
+
+Install the pinned tool dependency first:
+    python -m pip install -r requirements-tools.txt
 """
 
 from __future__ import annotations
@@ -104,7 +107,7 @@ def glyph_pixels(lines: Iterable[str]) -> tuple[set[tuple[int, int]], dict[tuple
                 cursor += 3
                 word_index += 1
                 continue
-            color = CYAN if word_index == 0 else ORANGE
+            color = CYAN if line_index == 0 and word_index == 0 else ORANGE
             for y, row in enumerate(GLYPHS[char]):
                 for x, bit in enumerate(row):
                     if bit == "1":
