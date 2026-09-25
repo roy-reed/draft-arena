@@ -27,8 +27,8 @@ const CHAR_LEVEL_MAX := 5
 const CHAR_LEVEL_COST := 25
 const START_PICK_COST := 40
 const PITY_PER_WAVE := 12   # 死亡保底：每个已清普通波
-const PITY_PER_BOSS := 18   # 死亡保底：每个已击杀首领
-const PITY_CAP := 40        # 保底上限：防后期死亡收益超过通关（刷币无激励）
+const PITY_PER_BOSS := 24   # 死亡保底：每个已击杀首领
+const PITY_CAP := 60        # 保底上限：配合通关期望 90% 总上限防止死亡刷币
 const SOAK_CYCLES := 5      # --soak 长跑：完整重载场景的循环次数
 const ELITE_CHANCE := 0.12  # 第 2 波起精英概率（--sim 与刷怪共用，勿只改一处）
 const R1_HP_RAMP := 0.15    # 区域 1 逐波爬坡：每波敌人 HP +15%（负值即减压，方向待 playtest 校准）
@@ -600,7 +600,10 @@ func _start_wave() -> void:
 		var budget_mult := minf(1.0 + 0.12 * (player_level - 1), 1.8)
 		var base_mob_cap := clampi(int(round((4 + wave_i * 2) * budget_mult)), 8, 32)
 		current_spawn_multiplier = _spawn_density_multiplier()
-		mob_cap = SpawnCurveS.scaled_density(base_mob_cap, current_spawn_multiplier)
+		if _endless:
+			mob_cap = SpawnCurveS.scaled_density(base_mob_cap, current_spawn_multiplier)
+		else:
+			mob_cap = SpawnCurveS.campaign_density(base_mob_cap, _waves_cleared() + 1, _campaign_regular_wave_count())
 		to_spawn = mob_cap
 		var spawn_window := 10.0 + wave_i * 2.0  # 出怪提速：波前段密集刷完，前期节奏明显加快
 		spawn_interval = SpawnCurveS.interval_for(spawn_window, to_spawn)
@@ -1177,13 +1180,20 @@ func _waves_cleared() -> int:
 func _expected_win_coins() -> float:
 	# 通关期望收益（与 --sim 同一组公式）：击杀期望 + 清波 +2 + 首领 15
 	var total := 15.0 * regions.size()
+	var campaign_wave := 0
 	for ri in regions.size():
 		var reg: Dictionary = regions[ri]
 		for w in range(1, int(reg["waves"]) + 1):
-			var n := 4 + w * 2
+			campaign_wave += 1
+			var n := _baseline_campaign_density(w, campaign_wave)
 			var elites := ELITE_CHANCE * n if w >= 2 else 0.0
 			total += (n - elites) + elites * 3.0 + 2.0
 	return total
+
+func _baseline_campaign_density(region_wave: int, campaign_wave: int) -> int:
+	# 解析经济模型固定玩家等级为 1，但与实战共用基础下限、战役乘区、取整与硬上限。
+	var base_mob_cap := clampi(4 + region_wave * 2, 8, 32)
+	return SpawnCurveS.campaign_density(base_mob_cap, campaign_wave, _campaign_regular_wave_count())
 
 func _death_pity() -> int:
 	# 保底 = min(每波/首领补偿, 固定上限, 通关期望 90% - 已赚)：保证区域 2 起死局 ≥ 40% 通关期望，
@@ -1225,10 +1235,12 @@ func _run_sim() -> void:
 	var earned := 0.0
 	var bosses := 0
 	var waves_done := 0
+	var campaign_wave := 0
 	for ri in regions.size():
 		var reg: Dictionary = regions[ri]
 		for w in range(1, int(reg["waves"]) + 1):
-			var n := 4 + w * 2
+			campaign_wave += 1
+			var n := _baseline_campaign_density(w, campaign_wave)
 			var elites := ELITE_CHANCE * n if w >= 2 else 0.0
 			var wc := (n - elites) + elites * 3.0
 			var part := earned + 0.5 * wc

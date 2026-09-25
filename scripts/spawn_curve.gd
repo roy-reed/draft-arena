@@ -35,5 +35,9 @@ static func scaled_density(base_cap: int, multiplier: float) -> int:
 	return clampi(roundi(maxi(base_cap, 1) * maxf(multiplier, 1.0)), 1, MAX_ACTIVE_ENEMIES)
 
 
+static func campaign_density(base_cap: int, wave_number: int, total_waves: int) -> int:
+	return scaled_density(base_cap, campaign_multiplier(wave_number, total_waves))
+
+
 static func interval_for(spawn_window: float, target_density: int) -> float:
 	return maxf(maxf(spawn_window, 0.0) / float(maxi(target_density, 1)), MIN_SPAWN_INTERVAL)

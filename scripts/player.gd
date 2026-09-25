@@ -326,7 +326,7 @@ func _fire_dir(dir: Vector2, base_dmg: float, pierce: int, target: Node2D) -> vo
 		return
 	if not bullet_spawner.is_valid():
 		return
-	bullet_spawner.call(position, dir, current_damage(base_dmg, target), pierce, bounce, self)
+	bullet_spawner.call(global_position, dir, current_damage(base_dmg, target), pierce, bounce, self)
 	SFX.play("shoot")
 
 func take_damage(amount: float, source: Node2D) -> void:
