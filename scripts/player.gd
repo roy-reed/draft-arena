@@ -69,6 +69,8 @@ var _anim_t := 0.0
 
 const CardsS := preload("res://scripts/cards.gd")
 const SawbladeS := preload("res://scripts/sawblade.gd")
+const BASE_HIT_KNOCKBACK := 130.0
+const SHOTGUN_HIT_KNOCKBACK := 155.0
 
 func setup(cfg: Dictionary, level: int) -> void:
 	char_id = cfg["id"]
@@ -119,6 +121,10 @@ func set_weapon(id: String) -> void:
 		_ensure_sawblade()
 	else:
 		_remove_sawblade()
+
+
+func hit_knockback_strength() -> float:
+	return SHOTGUN_HIT_KNOCKBACK if weapon_id == "w_shotgun" else BASE_HIT_KNOCKBACK
 
 func upgrade_weapon() -> void:
 	weapon_level += 1
@@ -320,7 +326,7 @@ func _fire_dir(dir: Vector2, base_dmg: float, pierce: int, target: Node2D) -> vo
 		return
 	if not bullet_spawner.is_valid():
 		return
-	bullet_spawner.call(position, dir, current_damage(base_dmg, target), pierce, bounce, self)
+	bullet_spawner.call(global_position, dir, current_damage(base_dmg, target), pierce, bounce, self)
 	SFX.play("shoot")
 
 func take_damage(amount: float, source: Node2D) -> void:

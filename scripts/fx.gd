@@ -82,14 +82,14 @@ static func death_burst(pos: Vector2, color: Color, amount := 26) -> void:
 	shake(1.5)
 
 
-static func knockback(host: Node2D, dir: Vector2) -> void:
+static func knockback(host: Node2D, dir: Vector2, strength := 130.0) -> void:
 	if I == null or not I.enabled:
 		return
 	if host == null or not is_instance_valid(host) or dir == Vector2.ZERO:
 		return
 	var cur: Variant = host.get("kb")
 	if cur is Vector2:
-		host.set("kb", cur + dir.normalized() * 130.0)
+		host.set("kb", cur + dir.normalized() * maxf(strength, 0.0))
 
 
 static func pop_in(control: Control) -> void:

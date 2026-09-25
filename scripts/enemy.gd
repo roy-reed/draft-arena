@@ -30,6 +30,10 @@ func _ready() -> void:
 	add_to_group("enemies")
 	z_index = 3
 	hp = max_hp
+	_setup_visual()
+
+
+func _setup_visual() -> void:
 	var pts := PackedVector2Array()
 	for i in 8:
 		pts.append(Vector2.RIGHT.rotated(TAU * i / 8.0) * radius)
@@ -88,9 +92,12 @@ func take_damage(amount: float, from: Node2D) -> void:
 	FX.hit_spark(position, Color(1.0, 0.9, 0.4))
 	FX.float_number(self, amount, is_elite or crit)
 	if from != null and is_instance_valid(from):
-		FX.knockback(self, (position - from.position).normalized())
-	if from != null and from.get("slow_on_hit"):
-		apply_slow(0.75, 1.2)
+		var knockback_strength := 130.0
+		if from.has_method("hit_knockback_strength"):
+			knockback_strength = float(from.call("hit_knockback_strength"))
+		FX.knockback(self, (position - from.position).normalized(), knockback_strength)
+		if from.get("slow_on_hit") == true:
+			apply_slow(0.75, 1.2)
 	modulate = Color(1, 1, 1, 0.6)
 	var tw := create_tween()
 	tw.tween_property(self, "modulate", Color.WHITE, 0.12)

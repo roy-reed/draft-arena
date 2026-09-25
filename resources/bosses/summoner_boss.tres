@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="BossDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/bosses/boss_definition.gd" id="1_definition"]
+[ext_resource type="PackedScene" path="res://scenes/bosses/summoner_boss.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_definition")
+boss_id = &"summoner"
+display_name = "Summoner Boss"
+scene = ExtResource("2_scene")
+base_max_hp = 1400.0
+base_armor = 0.0
+base_speed = 38.0
+base_contact_damage = 16.0
+gameplay_radius = 34.0
+reward_coin = 15
+reward_xp = 120
+hud_color = Color(0.3, 0.8, 0.45, 1)

@@ -10,6 +10,7 @@ on:
 jobs:
   export:
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -42,21 +43,53 @@ jobs:
       - name: Import and smoke test
         shell: pwsh
         run: |
-          .\.tools\godot\godot_console.exe --headless --path . --import 2>&1 | Out-Null
-          .\.tools\godot\godot_console.exe --headless --path . -- --smoke | Tee-Object smoke.log
+          .\.tools\godot\godot_console.exe --headless --path . --import 2>&1 | Tee-Object import.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Select-String -Path import.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
+          .\.tools\godot\godot_console.exe --headless --path . -- --smoke 2>&1 | Tee-Object smoke.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Select-String -Path smoke.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
           if (-not (Select-String -Path smoke.log -Pattern "SMOKE_OK" -Quiet) ) { exit 1 }
+
+      - name: Core regression tests
+        shell: pwsh
+        run: |
+          .\.tools\godot\godot_console.exe --headless --path . -- --boss-test 2>&1 | Tee-Object boss-test.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Select-String -Path boss-test.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
+          if (-not (Select-String -Path boss-test.log -SimpleMatch "BOSS_TEST_OK" -Quiet)) { exit 1 }
+          .\.tools\godot\godot_console.exe --headless --path . --script res://scripts/tests/sawblade_cooldown_test.gd 2>&1 | Tee-Object sawblade-test.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Select-String -Path sawblade-test.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
+          if (-not (Select-String -Path sawblade-test.log -SimpleMatch "SAWBLADE_COOLDOWN_OK" -Quiet)) { exit 1 }
+          .\.tools\godot\godot_console.exe --headless --path . --script res://scripts/tests/spawn_curve_test.gd 2>&1 | Tee-Object spawn-curve-test.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Select-String -Path spawn-curve-test.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
+          if (-not (Select-String -Path spawn-curve-test.log -SimpleMatch "SPAWN_CURVE_OK" -Quiet)) { exit 1 }
+          .\.tools\godot\godot_console.exe --headless --path . -- --sim 2>&1 | Tee-Object sim.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Select-String -Path sim.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
+          if (-not (Select-String -Path sim.log -Pattern "SIM_OK" -Quiet)) { exit 1 }
+          .\.tools\godot\godot_console.exe --headless --path . -- --soak 2>&1 | Tee-Object soak.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Select-String -Path soak.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
+          if (-not (Select-String -Path soak.log -Pattern "SOAK_OK" -Quiet)) { exit 1 }
 
       - name: Export exe
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          .\.tools\godot\godot_console.exe --headless --path . --export-release "Windows" dist\DraftArena.exe
+          .\.tools\godot\godot_console.exe --headless --path . --export-release "Windows" dist\DraftArena.exe 2>&1 | Tee-Object export.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Select-String -Path export.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
           if (-not (Test-Path dist\DraftArena.exe)) { exit 1 }
 
       - name: Smoke test exported exe
         shell: pwsh
         run: |
-          .\dist\DraftArena.exe --headless -- --smoke | Tee-Object smoke2.log
+          .\dist\DraftArena.exe --headless -- --smoke 2>&1 | Tee-Object smoke2.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Select-String -Path smoke2.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
           if (-not (Select-String -Path smoke2.log -Pattern "SMOKE_OK" -Quiet) ) { exit 1 }
 
       - name: Upload artifact

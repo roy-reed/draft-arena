@@ -29,7 +29,7 @@ FX.I.enabled = not smoke
 | 1 | player.gd `take_damage` | `shake(5.0)` `hit_stop(0.05)` `hurt_vignette()` | 玩家受击三连反馈 |
 | 2 | enemy.gd `take_damage` | `hit_spark` `float_number` `knockback` | 命中反馈（含精英/首领、spitter、召唤物） |
 | 3 | enemy.gd `take_damage` 死亡分支 | `death_burst` | 死亡爆裂 + 小震 |
-| 4 | boss.gd `_physics_process` aim→dash | `shake(6.0)` | 首领冲锋震屏 |
+| 4 | `scripts/bosses/charge_boss.gd` `_physics_process` aim→dash | `shake(6.0)` | 首领冲锋震屏 |
 | 5 | ui.gd `show_draft` / `show_over` | `pop_in` | 面板弹入 |
 
 ### 1) player.gd · take_damage
@@ -55,10 +55,10 @@ if from != null:
 	FX.knockback(self, (position - from.position).normalized())
 ```
 
-- `is_elite` 作 big 参数：精英与首领出大号金色数字（boss.gd 已把 is_elite 置 true，自动生效）。
+- `is_elite` 作 big 参数：精英与首领出大号金色数字（BossBase 配置阶段已把 is_elite 置 true，自动生效）。
 - 现有调用路径（玩家武器、荆棘反弹）`from` 均非空，判空只是保险。
 - spark 位置想更贴近命中点可改为 `position + Vector2(0.0, -radius * 0.5)`。
-- spitter / boss_* 继承 enemy.gd，此段自动生效，无需重复接入。
+- spitter 与 `scripts/bosses/` 下的 BossBase 派生类继承 enemy.gd，此段自动生效，无需重复接入。
 
 ### 3) enemy.gd · 死亡爆裂
 
@@ -70,7 +70,7 @@ FX.death_burst(position, body_color)
 
 首领、召唤物、smoke 假人共用 take_damage，自动获得爆裂 + shake(1.5)。
 
-### 4) boss.gd · 冲锋起手
+### 4) charge_boss.gd · 冲锋起手
 
 `_physics_process` 的 `"aim"` 分支里，`_state = "dash"` 赋值处：
 
@@ -107,7 +107,7 @@ kb = kb.move_toward(Vector2.ZERO, 900.0 * delta)
 ```
 
 - 130.0 为击退初速（px/s），900.0 为衰减加速度（px/s²），均可调。
-- boss.gd 继承 enemy.gd 自动获得 kb；其 dash 用 `position +=` 直加，不受影响。
+- ChargeBoss 通过 BossBase 继承 enemy.gd，自动获得 kb；其 dash 用 `position +=` 直加，不受影响。
 
 ## 4. smoke 自测禁用
 
