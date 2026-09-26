@@ -39,3 +39,10 @@ python tools_setup_godot.py        # 下载引擎到 .tools/godot/
 ## 自动构建
 
 push 到 main 自动打包 Windows exe（GitHub Actions，产物在 Actions 页 Artifacts）。
+
+## 重建商店素材
+
+```bash
+python -m pip install -r requirements-tools.txt
+python tools_build_store_assets.py
+```
