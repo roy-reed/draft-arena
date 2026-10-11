@@ -7,34 +7,56 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: 4.4.1-stable
+  # SHA-512 取自 Godot 官方发布附带的 SHA512-SUMS.txt（godotengine/godot 4.4.1-stable）
+  GODOT_EDITOR_SHA512: 266978b803f7532edc69bdd5d8c4fdced0ea97aef1224a8879616398a2559e135520e186add06b532aa92bdfeecf6ac024634024de4b3abd69f6c34e6d6d0563
+  GODOT_TEMPLATES_SHA512: 8f461c7d6e91a0fbabfc95b1e4ca70ff1732c6f2920956a16b086ec2a85b5f7e238baf4dbce60dcc5630fae3bcb9a1fa2ae2027b92cb495c02d082705715e441
+
 jobs:
   export:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - name: Setup Godot
+      - name: Cache Godot and export templates
+        id: godot-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .tools/godot
+          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_EDITOR_SHA512 }}-${{ env.GODOT_TEMPLATES_SHA512 }}
+
+      - name: Setup Godot (verified)
+        if: steps.godot-cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          $v = "4.4.1-stable"
+          $v = $env:GODOT_VERSION
           $url = "https://github.com/godotengine/godot/releases/download/$v/Godot_v${v}_win64.exe.zip"
           New-Item -ItemType Directory -Force -Path .tools\godot | Out-Null
           Invoke-WebRequest -Uri $url -OutFile godot.zip
+          $actual = (Get-FileHash godot.zip -Algorithm SHA512).Hash.ToLowerInvariant()
+          if ($actual -ne $env:GODOT_EDITOR_SHA512) { throw "Godot editor SHA-512 mismatch: $actual" }
           Expand-Archive godot.zip -DestinationPath .tools\godot
           Rename-Item ".tools\godot\Godot_v${v}_win64.exe" godot.exe
           Rename-Item ".tools\godot\Godot_v${v}_win64_console.exe" godot_console.exe
 
-      - name: Setup export templates (self-contained)
+      - name: Setup export templates (self-contained, verified)
+        if: steps.godot-cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          $v = "4.4.1-stable"
-          # self-contained 模式：模板放 .tools/editor_settings/export_templates，用环境变量指过去
+          $v = $env:GODOT_VERSION
+          # self-contained 模式：模板放 .tools/godot/editor_data/export_templates
           $dst = ".tools\godot\editor_data\export_templates\4.4.1.stable"
           New-Item -ItemType Directory -Force -Path $dst | Out-Null
           Set-Content .tools\godot\_sc_ "self-contained"
           $url = "https://github.com/godotengine/godot/releases/download/$v/Godot_v${v}_export_templates.tpz"
           Invoke-WebRequest -Uri $url -OutFile templates.tpz
+          $actual = (Get-FileHash templates.tpz -Algorithm SHA512).Hash.ToLowerInvariant()
+          if ($actual -ne $env:GODOT_TEMPLATES_SHA512) { throw "Export templates SHA-512 mismatch: $actual" }
           Rename-Item templates.tpz templates.zip
           Expand-Archive templates.zip -DestinationPath tmp_templates
           Copy-Item tmp_templates\templates\windows_release_x86_64.exe "$dst\" -Force
@@ -43,57 +65,34 @@ jobs:
       - name: Import and smoke test
         shell: pwsh
         run: |
-          .\.tools\godot\godot_console.exe --headless --path . --import 2>&1 | Tee-Object import.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (Select-String -Path import.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
-          .\.tools\godot\godot_console.exe --headless --path . -- --smoke 2>&1 | Tee-Object smoke.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (Select-String -Path smoke.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
-          if (-not (Select-String -Path smoke.log -Pattern "SMOKE_OK" -Quiet) ) { exit 1 }
+          $g = '.\.tools\godot\godot_console.exe'
+          ./ci/run-check.ps1 -Name import -Exe $g -Arguments '--headless','--path','.','--import'
+          ./ci/run-check.ps1 -Name smoke -Exe $g -Arguments '--headless','--path','.','--','--smoke' -SuccessMarker 'SMOKE_OK'
 
       - name: Core regression tests
         shell: pwsh
         run: |
-          .\.tools\godot\godot_console.exe --headless --path . -- --boss-test 2>&1 | Tee-Object boss-test.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (Select-String -Path boss-test.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
-          if (-not (Select-String -Path boss-test.log -SimpleMatch "BOSS_TEST_OK" -Quiet)) { exit 1 }
-          .\.tools\godot\godot_console.exe --headless --path . --script res://scripts/tests/sawblade_cooldown_test.gd 2>&1 | Tee-Object sawblade-test.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (Select-String -Path sawblade-test.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
-          if (-not (Select-String -Path sawblade-test.log -SimpleMatch "SAWBLADE_COOLDOWN_OK" -Quiet)) { exit 1 }
-          .\.tools\godot\godot_console.exe --headless --path . --script res://scripts/tests/spawn_curve_test.gd 2>&1 | Tee-Object spawn-curve-test.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (Select-String -Path spawn-curve-test.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
-          if (-not (Select-String -Path spawn-curve-test.log -SimpleMatch "SPAWN_CURVE_OK" -Quiet)) { exit 1 }
-          .\.tools\godot\godot_console.exe --headless --path . -- --sim 2>&1 | Tee-Object sim.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (Select-String -Path sim.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
-          if (-not (Select-String -Path sim.log -Pattern "SIM_OK" -Quiet)) { exit 1 }
-          .\.tools\godot\godot_console.exe --headless --path . -- --soak 2>&1 | Tee-Object soak.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (Select-String -Path soak.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
-          if (-not (Select-String -Path soak.log -Pattern "SOAK_OK" -Quiet)) { exit 1 }
+          $g = '.\.tools\godot\godot_console.exe'
+          ./ci/run-check.ps1 -Name boss-test -Exe $g -Arguments '--headless','--path','.','--','--boss-test' -SuccessMarker 'BOSS_TEST_OK'
+          ./ci/run-check.ps1 -Name sawblade-test -Exe $g -Arguments '--headless','--path','.','--script','res://scripts/tests/sawblade_cooldown_test.gd' -SuccessMarker 'SAWBLADE_COOLDOWN_OK'
+          ./ci/run-check.ps1 -Name spawn-curve-test -Exe $g -Arguments '--headless','--path','.','--script','res://scripts/tests/spawn_curve_test.gd' -SuccessMarker 'SPAWN_CURVE_OK'
+          ./ci/run-check.ps1 -Name sim -Exe $g -Arguments '--headless','--path','.','--','--sim' -SuccessMarker 'SIM_OK'
+          ./ci/run-check.ps1 -Name soak -Exe $g -Arguments '--headless','--path','.','--','--soak' -SuccessMarker 'SOAK_OK'
 
       - name: Export exe
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          .\.tools\godot\godot_console.exe --headless --path . --export-release "Windows" dist\DraftArena.exe 2>&1 | Tee-Object export.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (Select-String -Path export.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
+          ./ci/run-check.ps1 -Name export -Exe '.\.tools\godot\godot_console.exe' -Arguments '--headless','--path','.','--export-release','Windows','dist\DraftArena.exe'
           if (-not (Test-Path dist\DraftArena.exe)) { exit 1 }
 
       - name: Smoke test exported exe
         shell: pwsh
         run: |
-          .\dist\DraftArena.exe --headless -- --smoke 2>&1 | Tee-Object smoke2.log
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (Select-String -Path smoke2.log -Pattern "SCRIPT ERROR|ERROR:" -Quiet) { exit 1 }
-          if (-not (Select-String -Path smoke2.log -Pattern "SMOKE_OK" -Quiet) ) { exit 1 }
+          ./ci/run-check.ps1 -Name smoke2 -Exe '.\dist\DraftArena.exe' -Arguments '--headless','--','--smoke' -SuccessMarker 'SMOKE_OK'
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: DraftArena-win64
           path: dist/DraftArena.exe
