@@ -38,6 +38,8 @@ pwsh ./ci/run-tests.ps1 -Godot /path/to/godot             # 指定其他 Godot 4
 
 检查顺序：registry（确认 `scripts/tests/*_test.gd` 都已登记）→ import → smoke → boss-test → sawblade-test → spawn-curve-test → sim → soak。新增独立测试脚本时，要在 `ci/run-tests.ps1` 的检查清单或 `scripts/tests/boss_test_runner.gd` 中登记。
 
+Linux 上可以先用 `GODOT_VERSION=4.4.1-stable GODOT_LINUX_SHA512=<见 tests-linux.yml> ./ci/install-godot-linux.sh` 下载 Godot（会校验官方 SHA-512），再运行 `pwsh ./ci/run-tests.ps1 -Godot .tools/godot-linux/godot`。CI 中的 `tests-linux` 工作流就是这样执行的。
+
 ## 自动构建
 
 push 到 main 自动打包 Windows exe（GitHub Actions，产物在 Actions 页 Artifacts）。
