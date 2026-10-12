@@ -7,6 +7,9 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  schedule:
+    # 每天 03:17 北京时间（19:17 UTC）跑一次完整 soak
+    - cron: '17 19 * * *'
 
 permissions:
   contents: read
@@ -23,9 +26,13 @@ env:
 jobs:
   tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # PR #13 上完整运行（含 soak）实测 7 分 08 秒；快速模式 20 分钟、完整模式 60 分钟上限
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 20 || 60 }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Check doc references
+        run: python3 ci/check_doc_refs.py
 
       - name: Cache Godot (Linux)
         id: godot-cache
@@ -41,9 +48,14 @@ jobs:
       - name: Re-verify cached Godot binary exists
         run: test -x .tools/godot-linux/godot && .tools/godot-linux/godot --version
 
-      - name: Run all tests (unified runner)
+      # PR 上跑快速模式（不含 soak）；push main、定时和手动触发时跑完整 soak
+      - name: Run tests (unified runner)
         shell: pwsh
-        run: ./ci/run-tests.ps1 -Godot ./.tools/godot-linux/godot
+        env:
+          FULL_RUN: ${{ github.event_name != 'pull_request' }}
+        run: |
+          if ($env:FULL_RUN -eq 'true') { ./ci/run-tests.ps1 -Godot ./.tools/godot-linux/godot }
+          else { ./ci/run-tests.ps1 -Godot ./.tools/godot-linux/godot -Quick }
 
       - name: Upload check logs
         if: always()
