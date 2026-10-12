@@ -37,9 +37,36 @@ var _draft_cards: Array = []
 var _draft_focus := -1
 var over_restart_btn: Button
 var over_restart_cb := Callable()
+# 手游版 M2：HUD 锚点 + 安全区；移动端字号放大；提示文案随输入方式（触屏/键鼠）切换
+const MOBILE_FONT_SCALE := 1.3
+static var font_scale_override := -1.0  # 测试用；<0 时按设备自动决定
+var font_scale := 1.0
+var text_touch := false               # 当前提示文案是否为触屏版
+var hud_root: Control
+var hud_hint: Label
+var menu_hint: Label
+var start_btn: Button
+var pause_buttons := {}
+# 每条提示的 [键鼠版, 触屏版]；键鼠版与原文完全一致
+const TEXTS := {
+	"hud_hint": ["WASD / 方向键移动 · 攻击全自动 · ESC 暂停 · F11 全屏", "左半屏拖动移动 · 攻击全自动 · 右上角 II 暂停"],
+	"menu_hint": ["选择角色（按 1 / 2 / 3 或点击），Space 或按钮开始", "点选角色，再点“开始”"],
+	"start": ["开始（Space）", "开始"],
+	"resume": ["继续（ESC / Space）", "继续"],
+	"restart": ["重开本局（R）", "重开本局"],
+	"quit": ["退出游戏（Q）", "退出游戏"],
+	"tutorial": ["移动：WASD / 方向键 · 攻击全自动 · ESC 暂停", "移动：左半屏拖动摇杆 · 攻击全自动 · 右上角 II 暂停"],
+	"press_restart": ["按 R 重开", "点“重开”按钮再来一局"],
+	"press_retry": ["按 R 重试", "点“重开”按钮重试"],
+}
 
 func _ready() -> void:
 	layer = 10
+	if font_scale_override > 0.0:
+		font_scale = font_scale_override
+	else:
+		font_scale = MOBILE_FONT_SCALE if TouchControls.detect_touch_device() else 1.0
+	text_touch = TouchControls.detect_touch_device()
 	_build_hud()
 	_build_draft()
 	_build_over()
@@ -48,48 +75,95 @@ func _ready() -> void:
 	_build_hint()
 	_build_pause()
 
+func _fs(size: int) -> int:
+	return int(round(size * font_scale))
+
+func _sz(v: Vector2) -> Vector2:
+	return (v * font_scale).round()
+
+func text(key: String) -> String:
+	return TEXTS[key][1 if text_touch else 0]
+
+func set_text_touch(v: bool) -> void:
+	text_touch = v
+	if hud_hint != null:
+		hud_hint.text = text("hud_hint")
+	if menu_hint != null:
+		menu_hint.text = text("menu_hint")
+	if start_btn != null:
+		start_btn.text = text("start")
+	for k in pause_buttons:
+		pause_buttons[k].text = text(k)
+
+# 安全区边距（视口像素）：left/top/right/bottom。HUD 根节点与之对齐，锚点子元素随之避让。
+func apply_safe_area(m: Vector4) -> void:
+	hud_root.offset_left = m.x
+	hud_root.offset_top = m.y
+	hud_root.offset_right = -m.z
+	hud_root.offset_bottom = -m.w
+
+func _anchor(c: Control, ax: float, ay: float, pos: Vector2) -> void:
+	# 把控件锚在 (ax, ay)，pos 为相对锚点的偏移（基准 1280×720 时与原绝对坐标一致）
+	var sz := Vector2.ZERO if c is Label else c.size  # Label 随文字撑到最小尺寸（与原绝对定位一致）
+	c.set_anchor(SIDE_LEFT, ax)
+	c.set_anchor(SIDE_RIGHT, ax)
+	c.set_anchor(SIDE_TOP, ay)
+	c.set_anchor(SIDE_BOTTOM, ay)
+	c.offset_left = pos.x
+	c.offset_top = pos.y
+	c.offset_right = pos.x + sz.x
+	c.offset_bottom = pos.y + sz.y
+
 func _label(text: String, size := 18) -> Label:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", _fs(size))
 	return l
 
 func _build_hud() -> void:
+	# 全部 HUD 挂在 hud_root（铺满视口、按安全区内缩）下，用锚点定位：
+	# 左上（血/经验/波次/金币）、顶部居中（首领条）、右上（连杀）、左下（操作提示）。
+	# 基准 1280×720、无安全区、字号倍率 1 时，各元素位置与原绝对坐标逐像素一致。
+	hud_root = Control.new()
+	hud_root.name = "HudRoot"
+	hud_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(hud_root)
+	var k := font_scale
 	var hp_bg := ColorRect.new()
 	hp_bg.color = Color(0, 0, 0, 0.5)
-	hp_bg.position = Vector2(24, 20)
-	hp_bg.size = Vector2(260, 22)
+	hp_bg.size = _sz(Vector2(260, 22))
 	hp_fill = ColorRect.new()
 	hp_fill.color = Color(0.3, 0.9, 0.4)
-	hp_fill.position = Vector2(2, 2)
-	hp_fill.size = Vector2(256, 18)
+	hp_fill.position = _sz(Vector2(2, 2))
+	hp_fill.size = _sz(Vector2(256, 18))
 	hp_bg.add_child(hp_fill)
-	add_child(hp_bg)
+	hud_root.add_child(hp_bg)
+	_anchor(hp_bg, 0, 0, Vector2(24, 20 * k).round())
 	hp_label = _label("", 14)
-	hp_label.position = Vector2(24, 46)
-	add_child(hp_label)
+	hud_root.add_child(hp_label)
+	_anchor(hp_label, 0, 0, Vector2(24, 46 * k).round())
 	var xp_bg := ColorRect.new()
 	xp_bg.color = Color(0, 0, 0, 0.4)
-	xp_bg.position = Vector2(24, 64)
-	xp_bg.size = Vector2(260, 8)
-	add_child(xp_bg)
+	xp_bg.size = _sz(Vector2(260, 8))
+	hud_root.add_child(xp_bg)
+	_anchor(xp_bg, 0, 0, Vector2(24, 64 * k).round())
 	xp_fill = ColorRect.new()
 	xp_fill.color = Color(0.3, 0.85, 0.9)
-	xp_fill.position = Vector2(24, 64)
-	xp_fill.size = Vector2(0, 8)
-	add_child(xp_fill)
+	xp_fill.size = Vector2(0, round(8 * k))
+	hud_root.add_child(xp_fill)
+	_anchor(xp_fill, 0, 0, Vector2(24, 64 * k).round())
 	xp_label = _label("", 13)
-	xp_label.position = Vector2(24, 74)
-	add_child(xp_label)
+	hud_root.add_child(xp_label)
+	_anchor(xp_label, 0, 0, Vector2(24, 74 * k).round())
 	wave_label = _label("", 20)
-	wave_label.position = Vector2(24, 96)
-	add_child(wave_label)
+	hud_root.add_child(wave_label)
+	_anchor(wave_label, 0, 0, Vector2(24, 96 * k).round())
 	coin_label = _label("金币 0", 20)
-	coin_label.position = Vector2(24, 124)
-	add_child(coin_label)
+	hud_root.add_child(coin_label)
+	_anchor(coin_label, 0, 0, Vector2(24, 124 * k).round())
 	boss_bar = ColorRect.new()
 	boss_bar.color = Color(0, 0, 0, 0.55)
-	boss_bar.position = Vector2(340, 24)
 	boss_bar.size = Vector2(600, 20)
 	boss_bar.visible = false
 	boss_fill = ColorRect.new()
@@ -97,16 +171,17 @@ func _build_hud() -> void:
 	boss_fill.position = Vector2(2, 2)
 	boss_fill.size = Vector2(596, 16)
 	boss_bar.add_child(boss_fill)
-	add_child(boss_bar)
-	var hint := _label("WASD / 方向键移动 · 攻击全自动 · ESC 暂停 · F11 全屏", 14)
-	hint.position = Vector2(24, 690)
-	add_child(hint)
+	hud_root.add_child(boss_bar)
+	_anchor(boss_bar, 0.5, 0, Vector2(-300, 24))  # 原 x=340：640-300
+	hud_hint = _label(text("hud_hint"), 14)
+	hud_root.add_child(hud_hint)
+	_anchor(hud_hint, 0, 1, Vector2(24, -30))  # 原 y=690：720-30
 	combo_label = _label("", 20)
-	combo_label.position = Vector2(1030, 60)
 	combo_label.add_theme_color_override("font_color", Color(1.0, 0.75, 0.25))
 	combo_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	combo_label.add_theme_constant_override("outline_size", 6)
-	add_child(combo_label)
+	hud_root.add_child(combo_label)
+	_anchor(combo_label, 1, 0, Vector2(-250, 60))  # 原 x=1030：1280-250
 	combo_label.visible = false
 
 func update_combo(n: int) -> void:
@@ -114,7 +189,7 @@ func update_combo(n: int) -> void:
 		combo_label.visible = false
 		return
 	combo_label.text = "连杀 ×%d" % n
-	combo_label.add_theme_font_size_override("font_size", 18 + mini(n / 5, 12))
+	combo_label.add_theme_font_size_override("font_size", _fs(18 + mini(n / 5, 12)))
 	combo_label.visible = true
 
 func _build_banner() -> void:
@@ -122,10 +197,20 @@ func _build_banner() -> void:
 	banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	banner_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	banner_label.add_theme_constant_override("outline_size", 8)
-	banner_label.position = Vector2(0, 120)
-	banner_label.size = Vector2(1280, 50)
 	banner_label.modulate.a = 0.0
-	add_child(banner_label)
+	hud_root.add_child(banner_label)
+	_span_width(banner_label, 120, 50)
+
+func _span_width(c: Control, top: float, h: float) -> void:
+	# 横向铺满 HUD 区域（基准 1280 宽时即原来的 x=0、宽 1280）
+	c.anchor_left = 0
+	c.anchor_right = 1
+	c.anchor_top = 0
+	c.anchor_bottom = 0
+	c.offset_left = 0
+	c.offset_right = 0
+	c.offset_top = top
+	c.offset_bottom = top + h
 
 func flash_banner(text: String) -> void:
 	banner_label.text = text
@@ -145,10 +230,9 @@ func _build_hint() -> void:
 	hint_label.add_theme_color_override("font_color", Color(1, 1, 0.75))
 	hint_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	hint_label.add_theme_constant_override("outline_size", 6)
-	hint_label.position = Vector2(0, 178)
-	hint_label.size = Vector2(1280, 30)
 	hint_label.modulate.a = 0.0
-	add_child(hint_label)
+	hud_root.add_child(hint_label)
+	_span_width(hint_label, 178, 30)
 
 func show_hint(text: String, secs: float) -> void:
 	hint_label.text = text
@@ -183,15 +267,16 @@ func _build_pause() -> void:
 	slider.min_value = 0.0
 	slider.max_value = 1.0
 	slider.step = 0.05
-	slider.custom_minimum_size = Vector2(280, 24)
+	slider.custom_minimum_size = _sz(Vector2(280, 24))
 	slider.value_changed.connect(func(v: float): _fire_pause_arg("volume", v))
 	vol_row.add_child(slider)
 	vb.add_child(vol_row)
 	pause_root.set_meta("slider", slider)
-	for item in [["继续（ESC / Space）", "resume"], ["重开本局（R）", "restart"], ["退出游戏（Q）", "quit"]]:
+	for item in [[text("resume"), "resume"], [text("restart"), "restart"], [text("quit"), "quit"]]:
 		var b := _menu_btn()
 		b.text = item[0]
-		b.custom_minimum_size = Vector2(420, 46)
+		pause_buttons[item[1]] = b
+		b.custom_minimum_size = _sz(Vector2(420, 46))
 		b.pressed.connect(func(): _fire_pause(item[1]))
 		vb.add_child(b)
 	panel.add_child(vb)
@@ -231,8 +316,8 @@ func _build_draft() -> void:
 	draft_buttons = []
 	for i in 3:
 		var b := Button.new()
-		b.custom_minimum_size = Vector2(230, 130)
-		b.add_theme_font_size_override("font_size", 16)
+		b.custom_minimum_size = _sz(Vector2(230, 130))
+		b.add_theme_font_size_override("font_size", _fs(16))
 		b.pivot_offset = b.custom_minimum_size / 2.0
 		# 悬停放大只用于鼠标；触屏上由“点按聚焦”代替（触摸模拟的鼠标事件不触发悬停）
 		b.mouse_entered.connect(func():
@@ -252,7 +337,7 @@ func _build_draft() -> void:
 	draft_detail = _label("", 20)
 	draft_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	draft_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	draft_detail.custom_minimum_size = Vector2(722, 0)
+	draft_detail.custom_minimum_size = _sz(Vector2(722, 0))
 	draft_detail.visible = false
 	vb.add_child(draft_detail)
 	draft_panel.add_child(vb)
@@ -271,8 +356,8 @@ func _build_over() -> void:
 	vb.add_child(over_label)
 	over_restart_btn = _menu_btn()
 	over_restart_btn.text = "重开"
-	over_restart_btn.add_theme_font_size_override("font_size", 22)
-	over_restart_btn.custom_minimum_size = Vector2(420, 64)
+	over_restart_btn.add_theme_font_size_override("font_size", _fs(22))
+	over_restart_btn.custom_minimum_size = _sz(Vector2(420, 64))
 	over_restart_btn.visible = false
 	over_restart_btn.pressed.connect(func():
 		if over_restart_cb.is_valid():
@@ -308,17 +393,17 @@ func _build_menu() -> void:
 	var title := _label("DRAFT ARENA", 40)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(title)
-	var hint := _label("选择角色（按 1 / 2 / 3 或点击），Space 或按钮开始", 15)
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vb.add_child(hint)
+	menu_hint = _label(text("menu_hint"), 15)
+	menu_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vb.add_child(menu_hint)
 	var hb := HBoxContainer.new()
 	hb.alignment = BoxContainer.ALIGNMENT_CENTER
 	hb.add_theme_constant_override("separation", 12)
 	menu_char_buttons = []
 	for i in 3:
 		var b := Button.new()
-		b.custom_minimum_size = Vector2(280, 130)
-		b.add_theme_font_size_override("font_size", 15)
+		b.custom_minimum_size = _sz(Vector2(280, 130))
+		b.add_theme_font_size_override("font_size", _fs(15))
 		b.pressed.connect(_on_char_btn.bind(i))
 		hb.add_child(b)
 		menu_char_buttons.append(b)
@@ -336,12 +421,12 @@ func _build_menu() -> void:
 	vb.add_child(shop_level_btn)
 	vb.add_child(shop_pick_btn)
 	var pad := Control.new()
-	pad.custom_minimum_size = Vector2(0, 8)
+	pad.custom_minimum_size = _sz(Vector2(0, 8))
 	vb.add_child(pad)
-	var start_btn := _menu_btn()
-	start_btn.text = "开始（Space）"
-	start_btn.add_theme_font_size_override("font_size", 22)
-	start_btn.custom_minimum_size = Vector2(640, 54)
+	start_btn = _menu_btn()
+	start_btn.text = text("start")
+	start_btn.add_theme_font_size_override("font_size", _fs(22))
+	start_btn.custom_minimum_size = _sz(Vector2(640, 54))
 	start_btn.pressed.connect(func(): _fire_cb("start"))
 	vb.add_child(start_btn)
 	menu_root.add_child(vb)
@@ -350,8 +435,8 @@ func _build_menu() -> void:
 
 func _menu_btn() -> Button:
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(640, 44)
-	b.add_theme_font_size_override("font_size", 15)
+	b.custom_minimum_size = _sz(Vector2(640, 44))
+	b.add_theme_font_size_override("font_size", _fs(15))
 	return b
 
 func _fire_cb(key: String) -> void:
@@ -386,11 +471,11 @@ func refresh_menu(char_texts: Array, card_text: String, level_text: String, pick
 # ---- HUD 与面板 ----
 
 func update_hp(hp: float, max_hp: float) -> void:
-	hp_fill.size.x = 256.0 * clampf(hp / max_hp, 0.0, 1.0)
+	hp_fill.size.x = round(256.0 * font_scale) * clampf(hp / max_hp, 0.0, 1.0)
 	hp_label.text = "HP %d / %d" % [int(hp), int(max_hp)]
 
 func update_xp(level: int, xp: int, needed: int) -> void:
-	xp_fill.size.x = 260.0 * clampf(float(xp) / float(needed), 0.0, 1.0)
+	xp_fill.size.x = round(260.0 * font_scale) * clampf(float(xp) / float(needed), 0.0, 1.0)
 	xp_label.text = "Lv %d · %d/%d XP" % [level, xp, needed]
 
 func update_wave(text: String) -> void:

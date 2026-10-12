@@ -6,6 +6,8 @@ class_name TouchControls
 #   InputEventScreenTouch 才启用，因此没有触屏的桌面行为与原来完全一致。
 
 signal touch_mode_changed(enabled: bool)
+# 最近一次输入来自触屏(true)还是键盘/手柄(false)，用于切换提示文案（M2）
+signal input_kind_changed(touch: bool)
 
 const ACTIONS := ["move_left", "move_right", "move_up", "move_down"]
 const STICK_RADIUS := 90.0        # 摇杆最大偏移（视口像素，基准 1280×720）
@@ -23,6 +25,8 @@ var _stick_origin := Vector2.ZERO
 var _stick_pos := Vector2.ZERO
 var _injected := false
 var _stick_draw: Node2D
+var safe_root: Control
+var last_input_touch := false
 
 
 static func detect_touch_device() -> bool:
@@ -68,16 +72,40 @@ func _ready() -> void:
 	_stick_draw = Node2D.new()
 	_stick_draw.draw.connect(_draw_stick)
 	add_child(_stick_draw)
+	safe_root = Control.new()
+	safe_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	safe_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(safe_root)
 	pause_button = Button.new()
 	pause_button.text = "II"
 	pause_button.add_theme_font_size_override("font_size", 28)
 	pause_button.custom_minimum_size = PAUSE_BTN_SIZE
 	pause_button.size = PAUSE_BTN_SIZE
-	pause_button.position = Vector2(1280 - PAUSE_BTN_SIZE.x - 16, 16)
 	pause_button.focus_mode = Control.FOCUS_NONE
 	pause_button.pressed.connect(_on_pause_pressed)
-	add_child(pause_button)
+	safe_root.add_child(pause_button)
+	# 锚在安全区右上角（基准 1280×720 时 x=1192, y=16）
+	pause_button.anchor_left = 1.0
+	pause_button.anchor_right = 1.0
+	pause_button.offset_left = -PAUSE_BTN_SIZE.x - 16
+	pause_button.offset_right = -16
+	pause_button.offset_top = 16
+	pause_button.offset_bottom = 16 + PAUSE_BTN_SIZE.y
+	last_input_touch = detect_touch_device()
 	set_touch_enabled(detect_touch_device())
+
+
+func apply_safe_area(m: Vector4) -> void:
+	safe_root.offset_left = m.x
+	safe_root.offset_top = m.y
+	safe_root.offset_right = -m.z
+	safe_root.offset_bottom = -m.w
+
+
+func _note_input_kind(touch: bool) -> void:
+	if touch != last_input_touch:
+		last_input_touch = touch
+		input_kind_changed.emit(touch)
 
 
 func set_touch_enabled(v: bool) -> void:
@@ -108,8 +136,11 @@ func _refresh() -> void:
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		_note_input_kind(true)
 		if not touch_enabled and force_touch != 0:
 			set_touch_enabled(true)
+	elif (event is InputEventKey or event is InputEventJoypadButton) and event.is_pressed():
+		_note_input_kind(false)
 	if not touch_enabled:
 		return
 	if event is InputEventScreenTouch:

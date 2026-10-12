@@ -30,6 +30,8 @@ python tools_setup_godot.py        # 下载引擎到 .tools/godot/
 
 手机（Android 横屏）：左半屏按住拖动即为虚拟摇杆，攻击全自动；右上角 II 暂停，系统返回键 = 暂停/继续（结算界面为重开，主菜单为退出）；选牌时点一下查看详情，再点同一张确认。
 
+桌面预览手游版布局：`godot --path . -- --mobile-preview --safe-inset=96,0,48,40`（强制触屏模式与 expand，按屏幕像素模拟左/上/右/下安全区）。
+
 ## 代理协作
 
 见 [AGENTS.md](AGENTS.md)——验收契约（smoke/sim/soak/shot 四件套）、编码约定、工作流。
