@@ -116,6 +116,8 @@ var _wtest_base := 0.0
 var _wtest_dummies: Array = []
 var _t0 := 0
 var touch: TouchControls = null
+var _mobile_preview := false
+var _preview_inset := Vector4.ZERO
 
 func _ready() -> void:
 	var user_args := OS.get_cmdline_user_args()
@@ -126,6 +128,15 @@ func _ready() -> void:
 	smoke = "--smoke" in user_args or "--soak" in user_args
 	soak = "--soak" in user_args
 	_shot = "--shot" in user_args
+	# 桌面上预览手游版：强制触屏模式 + expand；可用 --safe-inset=左,上,右,下（屏幕像素）模拟挖孔/手势条
+	if "--mobile-preview" in user_args:
+		TouchControls.force_touch = 1
+		_mobile_preview = true
+		for a in user_args:
+			if a.begins_with("--safe-inset="):
+				var p := a.trim_prefix("--safe-inset=").split(",")
+				if p.size() == 4:
+					_preview_inset = Vector4(float(p[0]), float(p[1]), float(p[2]), float(p[3]))
 	if "--sim" in user_args:
 		_run_sim()
 		return
@@ -156,6 +167,9 @@ func _ready() -> void:
 	ui.over_restart_cb = _cb_restart
 	ui.set_touch_mode(touch.touch_enabled)
 	touch.touch_mode_changed.connect(Callable(ui, "set_touch_mode"))
+	touch.input_kind_changed.connect(Callable(ui, "set_text_touch"))
+	if TouchControls.detect_touch_device():
+		_setup_mobile_screen()
 	_enter_menu()
 	if smoke:
 		meta_d["coins"] = 500
@@ -482,7 +496,7 @@ func _start_run() -> void:
 	else:
 		_start_inter(0.8)
 	if not meta_d.get("tutorial_done", false):
-		ui.show_hint("移动：WASD / 方向键 · 攻击全自动 · ESC 暂停", 6.0)
+		ui.show_hint(_ui_text("tutorial"), 6.0)
 
 func _save_shot(fname: String) -> bool:
 	if DisplayServer.get_name() == "headless":
@@ -535,6 +549,32 @@ func hotkey(event: InputEvent) -> void:
 				DisplayServer.window_set_mode(
 					DisplayServer.WINDOW_MODE_WINDOWED if mode == DisplayServer.WINDOW_MODE_FULLSCREEN
 					else DisplayServer.WINDOW_MODE_FULLSCREEN)
+
+# 提示文案按输入方式取键鼠版/触屏版；没有 text() 的替身 UI（测试）回退到键鼠原文
+func _ui_text(key: String) -> String:
+	if ui != null and ui.has_method("text"):
+		return ui.text(key)
+	return UIS.TEXTS[key][0]
+
+# ---- 移动端屏幕适配（M2）：expand + 竞技场居中 + 安全区；桌面端不调用 ----
+
+func _setup_mobile_screen() -> void:
+	get_tree().root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	RenderingServer.set_default_clear_color(ScreenLayout.BG_COLOR)
+	get_viewport().size_changed.connect(_apply_screen_layout)
+	_apply_screen_layout()
+
+func _apply_screen_layout() -> void:
+	var vp := get_viewport()
+	var visible := vp.get_visible_rect().size
+	vp.canvas_transform = Transform2D(0.0, ScreenLayout.world_offset(visible))
+	var win := Vector2(DisplayServer.window_get_size())
+	var safe := Rect2(DisplayServer.get_display_safe_area())
+	if _mobile_preview:  # 桌面的“安全区”是去掉任务栏的工作区，预览时改用窗口内的模拟边距
+		safe = Rect2(_preview_inset.x, _preview_inset.y, win.x - _preview_inset.x - _preview_inset.z, win.y - _preview_inset.y - _preview_inset.w)
+	var m := ScreenLayout.safe_margins(win, safe, visible)
+	ui.apply_safe_area(m)
+	touch.apply_safe_area(m)
 
 # ---- 移动端：暂停按钮、Android 返回键、切到后台（桌面端不会收到这些通知） ----
 
@@ -888,7 +928,7 @@ func _abort_boss_start(result: Error) -> void:
 	player.active = false
 	state = "over"
 	ui.hide_boss()
-	ui.show_over("首领加载失败（%s）。\n按 R 重试" % error_string(result))
+	ui.show_over("首领加载失败（%s）。\n%s" % [error_string(result), _ui_text("press_retry")])
 	push_error("Boss wave aborted because encounter startup failed: %s" % error_string(result))
 	if smoke:
 		_smoke_finish("boss_start_fail")
@@ -942,7 +982,7 @@ func _fail_boss_encounter(reason: String, report_error := true) -> void:
 	player.active = false
 	state = "over"
 	ui.hide_boss()
-	ui.show_over("首领战异常中止（%s）。\n按 R 重试" % reason)
+	ui.show_over("首领战异常中止（%s）。\n%s" % [reason, _ui_text("press_retry")])
 	if report_error:
 		push_error("Boss encounter aborted: %s" % reason)
 	aborted_encounter.queue_free()
@@ -1195,11 +1235,11 @@ func _finish(result: String) -> void:
 			d["tutorial_done"] = true
 		MetaS.save_data(d)
 	if result == "win":
-		ui.show_over("通关！击杀 %d · 本局 +%d 金币（累计 %d）\n%s\n按 R 重开" % [kills, run_coins, total_after, _next_unlock_hint(total_after)])
+		ui.show_over("通关！击杀 %d · 本局 +%d 金币（累计 %d）\n%s\n%s" % [kills, run_coins, total_after, _next_unlock_hint(total_after), _ui_text("press_restart")])
 		SFX.play("win")
 	else:
 		var where := ("无尽第 %d 波" % wave_i) if _endless else ("区域 %d 第 %d 波" % [region_i + 1, wave_i])
-		ui.show_over("你在%s倒下了。击杀 %d\n战斗收益 %d + 进度保底 %d = 本局 +%d（累计 %d）\n%s\n按 R 重开" % [where, kills, run_coins - pity, pity, run_coins, total_after, _next_unlock_hint(total_after)])
+		ui.show_over("你在%s倒下了。击杀 %d\n战斗收益 %d + 进度保底 %d = 本局 +%d（累计 %d）\n%s\n%s" % [where, kills, run_coins - pity, pity, run_coins, total_after, _next_unlock_hint(total_after), _ui_text("press_restart")])
 		SFX.play("lose")
 	if smoke:
 		_smoke_finish(result)

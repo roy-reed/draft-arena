@@ -32,11 +32,14 @@ $base = @('--headless', '--path', $root)
 $checks = @(
     [pscustomobject]@{ Name = 'import';           Args = $base + @('--import');                                             Marker = '' }
     [pscustomobject]@{ Name = 'smoke';            Args = $base + @('--', '--smoke');                                        Marker = 'SMOKE_OK' }
+    # 同一局 smoke 在手游版模式下再跑一遍（强制触屏 + expand + 模拟安全区），覆盖 main 的移动端分支
+    [pscustomobject]@{ Name = 'smoke-mobile';     Args = $base + @('--', '--smoke', '--mobile-preview', '--safe-inset=96,0,48,40'); Marker = 'SMOKE_OK' }
     [pscustomobject]@{ Name = 'boss-test';        Args = $base + @('--', '--boss-test');                                    Marker = 'BOSS_TEST_OK' }
     [pscustomobject]@{ Name = 'sawblade-test';    Args = $base + @('--script', 'res://scripts/tests/sawblade_cooldown_test.gd'); Marker = 'SAWBLADE_COOLDOWN_OK' }
     [pscustomobject]@{ Name = 'spawn-curve-test'; Args = $base + @('--script', 'res://scripts/tests/spawn_curve_test.gd');    Marker = 'SPAWN_CURVE_OK' }
     [pscustomobject]@{ Name = 'android-config-test'; Args = $base + @('--script', 'res://scripts/tests/android_export_config_test.gd'); Marker = 'ANDROID_CONFIG_OK' }
     [pscustomobject]@{ Name = 'touch-input-test'; Args = $base + @('--script', 'res://scripts/tests/touch_input_test.gd'); Marker = 'TOUCH_INPUT_OK' }
+    [pscustomobject]@{ Name = 'screen-layout-test'; Args = $base + @('--script', 'res://scripts/tests/screen_layout_test.gd'); Marker = 'SCREEN_LAYOUT_OK' }
     [pscustomobject]@{ Name = 'sim';              Args = $base + @('--', '--sim');                                          Marker = 'SIM_OK' }
     [pscustomobject]@{ Name = 'soak';             Args = $base + @('--', '--soak');                                         Marker = 'SOAK_OK' }
 )
