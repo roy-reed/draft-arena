@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# 用法：ci/package-release.sh <tag> <DraftArena.exe 路径> <输出目录>
-# 产物：<输出目录>/DraftArena-<tag>-windows-x86_64.zip 与 SHA256SUMS.txt（sha256sum -c 可直接校验）
+# 用法：ci/package-release.sh <tag> <DraftArena.exe 路径> <输出目录> [已签名的 Android APK 路径]
+# 产物：<输出目录>/DraftArena-<tag>-windows-x86_64.zip、（可选）DraftArena-<tag>-android-arm64.apk
+#       与 SHA256SUMS.txt（覆盖全部产物，sha256sum -c 可直接校验）
 set -euo pipefail
-tag="${1:?tag}"; exe="${2:?exe}"; out="${3:?outdir}"
+tag="${1:?tag}"; exe="${2:?exe}"; out="${3:?outdir}"; apk="${4:-}"
 [[ "$tag" =~ ^v[0-9A-Za-z._-]+$ ]] || { echo "invalid tag: $tag" >&2; exit 1; }
 [[ -s "$exe" ]] || { echo "missing exe: $exe" >&2; exit 1; }
+if [[ -n "$apk" ]]; then [[ -s "$apk" ]] || { echo "missing apk: $apk" >&2; exit 1; }; fi
 root="$(cd "$(dirname "$0")/.." && pwd)"
 mkdir -p "$out"; out="$(cd "$out" && pwd)"
 stage="$(mktemp -d)"; trap 'rm -rf "$stage"' EXIT
@@ -37,5 +39,11 @@ with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as z:
             with open(full, "rb") as fh:
                 z.writestr(info, fh.read())
 PY
-(cd "$out" && sha256sum "$name.zip" > SHA256SUMS.txt)
+files=("$name.zip")
+if [[ -n "$apk" ]]; then
+  apk_name="DraftArena-${tag}-android-arm64.apk"
+  cp "$apk" "$out/$apk_name"
+  files+=("$apk_name")
+fi
+(cd "$out" && sha256sum "${files[@]}" > SHA256SUMS.txt)
 cat "$out/SHA256SUMS.txt"

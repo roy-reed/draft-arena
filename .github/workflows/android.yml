@@ -1,0 +1,97 @@
+name: android
+
+# Android arm64 APK 导出：
+# - pull_request / push main / 手动：用一次性 debug keystore 导出 APK 做冒烟（签名、包名、arm64、横屏校验）
+# - release.yml 推送 v* 标签时以 mode=release 复用本工作流，签名 keystore 由 GitHub Secrets 传入，绝不入库
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      mode:
+        type: string
+        default: debug
+      tag:
+        type: string
+        default: ''
+    secrets:
+      ANDROID_RELEASE_KEYSTORE_BASE64:
+        required: false
+      ANDROID_RELEASE_KEYSTORE_PASSWORD:
+        required: false
+      ANDROID_RELEASE_KEY_ALIAS:
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.workflow }}-${{ github.ref }}-${{ inputs.mode || 'debug' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  GODOT_VERSION: 4.4.1-stable
+  # SHA-512 取自 Godot 官方 SHA512-SUMS.txt（4.4.1-stable）
+  GODOT_LINUX_SHA512: ef4e76880a514257175544952c61191106fdef3095b909bafed9fcbeb230c3e5533920a0f3012882dd4bbde83028a67549825794e2d2c3cf76eba7918b71370e
+  GODOT_TEMPLATES_SHA512: 8f461c7d6e91a0fbabfc95b1e4ca70ff1732c6f2920956a16b086ec2a85b5f7e238baf4dbce60dcc5630fae3bcb9a1fa2ae2027b92cb495c02d082705715e441
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MODE: ${{ inputs.mode || 'debug' }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Cache Godot (Linux)
+        id: godot-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .tools/godot-linux
+          key: godot-linux-${{ env.GODOT_VERSION }}-${{ env.GODOT_LINUX_SHA512 }}
+
+      - name: Setup Godot (verified)
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: ./ci/install-godot-linux.sh .tools/godot-linux
+
+      # 只缓存解出的 android_* 模板；未命中时 export-android.sh 下载 tpz 并校验 SHA-512
+      - name: Cache Android export templates
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .tools/android-export/data/godot/export_templates
+          key: godot-android-templates-${{ env.GODOT_VERSION }}-${{ env.GODOT_TEMPLATES_SHA512 }}
+
+      - name: Decode release keystore
+        if: env.MODE == 'release'
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then echo "::error::缺少 secret ANDROID_RELEASE_KEYSTORE_BASE64"; exit 1; fi
+          umask 077
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          echo "ANDROID_RELEASE_KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+
+      - name: Export APK (${{ env.MODE }})
+        env:
+          GODOT: ${{ github.workspace }}/.tools/godot-linux/godot
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+        run: |
+          export JAVA_HOME="${JAVA_HOME_17_X64:?runner 缺少 JDK 17}"
+          export ANDROID_HOME="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          ./ci/export-android.sh "$MODE" dist/DraftArena.apk "$TAG"
+
+      - name: Remove release keystore
+        if: always() && env.MODE == 'release'
+        run: rm -f "$RUNNER_TEMP/release.keystore"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: DraftArena-android-${{ env.MODE }}
+          path: dist/DraftArena.apk
+          retention-days: ${{ env.MODE == 'release' && 30 || 7 }}

@@ -11,3 +11,8 @@ dist/
 *.log
 shot_*.png
 zoom_*.png
+
+# 签名密钥绝不入库（release keystore 由 GitHub Secrets 传入）
+*.keystore
+*.jks
+*.keystore.pass
