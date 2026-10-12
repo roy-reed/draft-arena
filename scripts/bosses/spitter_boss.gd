@@ -33,6 +33,7 @@ func _physics_process(delta: float) -> void:
 		var direction := to_player.normalized()
 		position += direction * speed * delta
 		position = position.clamp(arena.position + Vector2.ONE * radius, arena.end - Vector2.ONE * radius)
+		EnemyGrid.moved(self)
 		face_direction(direction)
 	if _spawn_guard <= 0.0:
 		_try_touch(delta)

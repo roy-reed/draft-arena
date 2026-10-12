@@ -32,6 +32,8 @@ python tools_setup_godot.py        # 下载引擎到 .tools/godot/
 
 桌面预览手游版布局：`godot --path . -- --mobile-preview --safe-inset=96,0,48,40`（强制触屏模式与 expand，按屏幕像素模拟左/上/右/下安全区）。
 
+性能对比基准（不在 CI 中运行）：`godot --headless --fixed-fps 60 --path . --script res://scripts/bench/collision_bench.gd [-- --legacy-collision]`；可复现的 smoke：`godot --headless --fixed-fps 60 --path . -- --smoke --seed=1 --grid-verify`。
+
 ## 代理协作
 
 见 [AGENTS.md](AGENTS.md)——验收契约（smoke/sim/soak/shot 四件套）、编码约定、工作流。

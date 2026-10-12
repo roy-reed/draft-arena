@@ -117,10 +117,16 @@ var _wtest_dummies: Array = []
 var _t0 := 0
 var touch: TouchControls = null
 var _mobile_preview := false
+# M3 性能/等价性对比：--seed=N 固定随机序列；--legacy-collision 退回线性扫描；--grid-verify 逐次比对
+var _seed := -1
+var _digest := 0
+var _frame0 := 0
+var _phys_samples := PackedFloat32Array()
 var _preview_inset := Vector4.ZERO
 
 func _ready() -> void:
 	var user_args := OS.get_cmdline_user_args()
+	_parse_perf_args(user_args)
 	if "--boss-test" in user_args:
 		get_tree().quit(BossTestRunnerS.run())
 		return
@@ -227,7 +233,34 @@ func _draw() -> void:
 		draw_line(Vector2(ARENA.position.x, y), Vector2(ARENA.end.x, y), Color(1, 1, 1, 0.03))
 	draw_rect(ARENA, Color(0.35, 0.35, 0.45), false, 2.0)
 
+func _parse_perf_args(user_args: PackedStringArray) -> void:
+	_frame0 = Engine.get_physics_frames()
+	EnemyGrid.enabled = not ("--legacy-collision" in user_args)
+	EnemyGrid.verify = "--grid-verify" in user_args
+	EnemyGrid.reset_stats()  # soak 每轮重载场景时按轮统计
+	for a in user_args:
+		if a.begins_with("--seed="):
+			_seed = int(a.trim_prefix("--seed="))
+			seed(_seed)
+
+func _perf_summary() -> String:
+	var n := _phys_samples.size()
+	var avg := 0.0
+	var p95 := 0.0
+	if n > 0:
+		var sorted := _phys_samples.duplicate()
+		sorted.sort()
+		for v in sorted:
+			avg += v
+		avg /= n
+		p95 = sorted[mini(n - 1, int(n * 0.95))]
+	return "seed=%d collision=%s checks=%d queries=%d mismatches=%d frames=%d digest=%08x phys_avg_us=%d phys_p95_us=%d" % [
+		_seed, "grid" if EnemyGrid.enabled else "linear", EnemyGrid.checks, EnemyGrid.queries, EnemyGrid.mismatches,
+		Engine.get_physics_frames() - _frame0, _digest & 0xffffffff, int(avg * 1e6), int(p95 * 1e6)]
+
 func _process(delta: float) -> void:
+	if smoke:
+		_phys_samples.append(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS))
 	if _shot:
 		_shot_t += delta
 		if (state == "draft" or state == "startpick") and _shot_t > 0.6:
@@ -1034,6 +1067,7 @@ func _card_pool() -> Array:
 func _on_enemy_killed(coin_value: int, pos: Vector2, xp_value: int) -> void:
 	enemies_alive = maxi(0, enemies_alive - 1)
 	kills += 1
+	_digest = hash([_digest, Engine.get_physics_frames() - _frame0, pos.round(), coin_value, xp_value])
 	player.on_kill()
 	add_xp(xp_value)
 	combo_n += 1
@@ -1285,6 +1319,8 @@ func _death_pity() -> int:
 	return mini(base, cap)
 
 func _smoke_finish(result: String) -> void:
+	if result == "win" and EnemyGrid.verify and EnemyGrid.mismatches > 0:
+		result = "grid_mismatch"
 	if soak:
 		if result != "win":
 			print("SOAK_FAIL cycle=%d/%d result=%s nodes=%d" % [_soak_done + 1, SOAK_CYCLES, result, get_tree().get_node_count()])
@@ -1292,7 +1328,7 @@ func _smoke_finish(result: String) -> void:
 			get_tree().quit(1)
 			return
 		_soak_done += 1
-		print("SOAK cycle=%d/%d result=%s nodes=%d" % [_soak_done, SOAK_CYCLES, result, get_tree().get_node_count()])
+		print("SOAK cycle=%d/%d result=%s nodes=%d %s" % [_soak_done, SOAK_CYCLES, result, get_tree().get_node_count(), _perf_summary()])
 		if _soak_done >= SOAK_CYCLES:
 			print("SOAK_OK")
 			_soak_done = 0
@@ -1300,6 +1336,7 @@ func _smoke_finish(result: String) -> void:
 			return
 		get_tree().reload_current_scene()
 		return
+	print("PERF ", _perf_summary())
 	var marker := "SMOKE_OK" if result == "win" else "SMOKE_FAIL"
 	print("%s result=%s region=%d wave=%d kills=%d peak_enemies=%d spawn_mult=%.2f run_coins=%d buy_card=%s buy_level=%s buy_pick=%s wtest=%s meta_coins=%d t_ms=%d" % [marker,
 		result, region_i, wave_i, kills, peak_enemies_alive, current_spawn_multiplier, run_coins,

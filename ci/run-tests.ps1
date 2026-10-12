@@ -31,17 +31,18 @@ $base = @('--headless', '--path', $root)
 # 检查清单：Name 唯一；Script 表示通过 --script 直接运行的测试文件
 $checks = @(
     [pscustomobject]@{ Name = 'import';           Args = $base + @('--import');                                             Marker = '' }
-    [pscustomobject]@{ Name = 'smoke';            Args = $base + @('--', '--smoke');                                        Marker = 'SMOKE_OK' }
+    [pscustomobject]@{ Name = 'smoke';            Args = $base + @('--', '--smoke', '--grid-verify');                                        Marker = 'SMOKE_OK' }
     # 同一局 smoke 在手游版模式下再跑一遍（强制触屏 + expand + 模拟安全区），覆盖 main 的移动端分支
-    [pscustomobject]@{ Name = 'smoke-mobile';     Args = $base + @('--', '--smoke', '--mobile-preview', '--safe-inset=96,0,48,40'); Marker = 'SMOKE_OK' }
+    [pscustomobject]@{ Name = 'smoke-mobile';     Args = $base + @('--', '--smoke', '--grid-verify', '--mobile-preview', '--safe-inset=96,0,48,40'); Marker = 'SMOKE_OK' }
     [pscustomobject]@{ Name = 'boss-test';        Args = $base + @('--', '--boss-test');                                    Marker = 'BOSS_TEST_OK' }
     [pscustomobject]@{ Name = 'sawblade-test';    Args = $base + @('--script', 'res://scripts/tests/sawblade_cooldown_test.gd'); Marker = 'SAWBLADE_COOLDOWN_OK' }
     [pscustomobject]@{ Name = 'spawn-curve-test'; Args = $base + @('--script', 'res://scripts/tests/spawn_curve_test.gd');    Marker = 'SPAWN_CURVE_OK' }
     [pscustomobject]@{ Name = 'android-config-test'; Args = $base + @('--script', 'res://scripts/tests/android_export_config_test.gd'); Marker = 'ANDROID_CONFIG_OK' }
     [pscustomobject]@{ Name = 'touch-input-test'; Args = $base + @('--script', 'res://scripts/tests/touch_input_test.gd'); Marker = 'TOUCH_INPUT_OK' }
     [pscustomobject]@{ Name = 'screen-layout-test'; Args = $base + @('--script', 'res://scripts/tests/screen_layout_test.gd'); Marker = 'SCREEN_LAYOUT_OK' }
+    [pscustomobject]@{ Name = 'collision-grid-test'; Args = $base + @('--script', 'res://scripts/tests/collision_grid_test.gd'); Marker = 'COLLISION_GRID_OK' }
     [pscustomobject]@{ Name = 'sim';              Args = $base + @('--', '--sim');                                          Marker = 'SIM_OK' }
-    [pscustomobject]@{ Name = 'soak';             Args = $base + @('--', '--soak');                                         Marker = 'SOAK_OK' }
+    [pscustomobject]@{ Name = 'soak';             Args = $base + @('--', '--soak', '--grid-verify');                                         Marker = 'SOAK_OK' }
 )
 
 # 登记校验：每个测试脚本必须出现在 boss_test_runner.gd 或上面的清单里
