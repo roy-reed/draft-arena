@@ -28,6 +28,8 @@ var _dead := false  # 死亡守卫：hp<=0 后拒绝再次受伤/再发击杀信
 
 func _ready() -> void:
 	add_to_group("enemies")
+	set_notify_transform(true)
+	EnemyGrid.track(self)
 	z_index = 3
 	hp = max_hp
 	_setup_visual()
@@ -55,6 +57,17 @@ func _setup_visual() -> void:
 	var tw := create_tween()
 	tw.tween_property(_poly, "self_modulate:a", 1.0, 0.35)
 
+func _notification(what: int) -> void:
+	# 空间网格与 enemies 组同步：进出场景树时登记/注销；TRANSFORM_CHANGED（帧末下发）兜底换格
+	match what:
+		NOTIFICATION_TRANSFORM_CHANGED:
+			EnemyGrid.moved(self)
+		NOTIFICATION_ENTER_TREE:
+			if is_in_group("enemies"):
+				EnemyGrid.track(self)
+		NOTIFICATION_EXIT_TREE:
+			EnemyGrid.untrack(self)
+
 func _skin_name() -> String:
 	return "enemy_chaser"
 
@@ -71,6 +84,7 @@ func _physics_process(delta: float) -> void:
 		return
 	var dir := (player.position - position).normalized()
 	position += dir * speed * slow_factor * delta + kb * delta
+	EnemyGrid.moved(self)  # 同帧更新命中网格（TRANSFORM_CHANGED 要到帧末才下发）
 	kb = kb.move_toward(Vector2.ZERO, 900.0 * delta)
 	if _spawn_guard > 0.0:
 		_spawn_guard -= delta

@@ -36,12 +36,11 @@ func _physics_process(delta: float) -> void:
 			return
 
 func _check_hit() -> bool:
-	for e in get_tree().get_nodes_in_group("enemies"):
-		if not is_instance_valid(e) or e in _hit_list:
-			continue
-		if position.distance_to(e.position) <= e.radius + 4.0:
-			_hit(e)
-			return true
+	# 空间网格查询，结果与原“遍历 enemies 组取第一个命中”逐次一致（见 enemy_grid.gd）
+	var e := EnemyGrid.first_hit(get_tree(), position, _hit_list)
+	if e != null:
+		_hit(e)
+		return true
 	return false
 
 func _hit(e: Node2D) -> void:

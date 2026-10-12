@@ -3,7 +3,7 @@ extends Node
 # 打击感表现层（自包含）：屏震 / 顿帧 / 伤害数字 / 命中火花 / 死亡爆裂 / 击退 / 面板弹入 / 受击红晕。
 # 用法：main 把本节点 add_child 进树后，任何脚本直接调用静态方法（如 FX.shake(5.0)），无需 preload。
 # 未挂载（I == null）或 enabled == false 时所有调用静默跳过，headless 与 smoke 自测零副作用。
-# 不含音频、不引用外部素材、不使用物理引擎；一次性节点用完即回收。
+# 不含音频、不引用外部素材、不使用物理引擎；伤害数字用完即回收，爆裂粒子走对象池复用。
 
 static var I: FX = null
 
@@ -46,6 +46,7 @@ func _exit_tree() -> void:
 func _process(delta: float) -> void:
 	_tick_hit_stop()
 	_tick_shake(delta)
+	_tick_bursts(delta)
 
 
 # ---- 静态入口：调用点无需判空 ----
@@ -169,31 +170,79 @@ func _spawn_float_number(host: Node2D, amount: float, big: bool) -> void:
 	tw.tween_callback(l.queue_free)
 
 
+# ---- 粒子对象池（M3）：一次性爆裂粒子复用 CPUParticles2D，避免每次命中/击杀都 new + queue_free ----
+# 参数与原实现逐项相同；回收条件同原实现（finished 或 lifetime + 1s 兜底）。
+const POOL_MAX_IDLE := 48          # 空闲上限，超出的回收节点直接释放
+static var bursts_created := 0     # 统计：累计新建的粒子节点数
+static var bursts_spawned := 0     # 统计：累计发射次数
+var _idle: Array[CPUParticles2D] = []
+var _busy := {}                    # CPUParticles2D -> 剩余兜底时间（秒，受 time_scale 影响，同原 Timer）
+
+
 func _spawn_burst(pos: Vector2, color: Color, amount: int, lifetime: float, v_min: float, v_max: float, s_min: float, s_max: float, gravity: Vector2) -> void:
-	var p := CPUParticles2D.new()
-	p.one_shot = true
-	p.explosiveness = 1.0
+	var p: CPUParticles2D = null
+	while p == null and not _idle.is_empty():
+		var cand: CPUParticles2D = _idle.pop_back()
+		if is_instance_valid(cand):
+			p = cand
+	var fresh := p == null
+	if fresh:
+		p = CPUParticles2D.new()
+		bursts_created += 1
+		p.one_shot = true
+		p.explosiveness = 1.0
+		p.spread = 180.0
+		p.z_index = 20
+		p.finished.connect(_recycle_burst.bind(p))
 	p.amount = amount
 	p.lifetime = lifetime
-	p.spread = 180.0
 	p.gravity = gravity
 	p.initial_velocity_min = v_min
 	p.initial_velocity_max = v_max
 	p.scale_amount_min = s_min
 	p.scale_amount_max = s_max
 	p.color = color
-	p.z_index = 20
-	add_child(p)
+	if fresh:
+		add_child(p)
+	p.visible = true
 	p.global_position = pos
-	p.emitting = true
-	p.finished.connect(p.queue_free)
-	# 双保险回收：即使 finished 未触发也不泄漏
-	var guard := Timer.new()
-	guard.one_shot = true
-	guard.wait_time = lifetime + 1.0
-	guard.autostart = true
-	guard.timeout.connect(p.queue_free)
-	p.add_child(guard)
+	if fresh:
+		p.emitting = true
+	else:
+		p.restart()
+	_busy[p] = lifetime + 1.0
+	bursts_spawned += 1
+
+
+func _tick_bursts(delta: float) -> void:
+	if _busy.is_empty():
+		return
+	for p in _busy.keys():
+		_busy[p] -= delta
+		if _busy[p] <= 0.0:
+			_recycle_burst(p)
+
+
+func _recycle_burst(p: CPUParticles2D) -> void:
+	if not _busy.has(p):
+		return
+	_busy.erase(p)
+	if not is_instance_valid(p):
+		return
+	p.emitting = false
+	p.visible = false
+	if _idle.size() < POOL_MAX_IDLE:
+		_idle.append(p)
+	else:
+		p.queue_free()
+
+
+func pool_idle_count() -> int:
+	return _idle.size()
+
+
+func pool_busy_count() -> int:
+	return _busy.size()
 
 
 func _pop_in(control: Control) -> void:

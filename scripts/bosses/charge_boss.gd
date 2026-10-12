@@ -46,6 +46,7 @@ func _physics_process(delta: float) -> void:
 		&"dash":
 			position += _dash_direction * dash_speed * delta
 			position = position.clamp(arena.position + Vector2.ONE * radius, arena.end - Vector2.ONE * radius)
+			EnemyGrid.moved(self)
 			_try_touch(delta)
 			if _state_time <= 0.0:
 				_enter_state(&"rest", recovery_duration)
