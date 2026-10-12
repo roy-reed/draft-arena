@@ -1,5 +1,5 @@
 extends SceneTree
-# 手游版 M1：虚拟摇杆注入、触屏显示条件、选牌点按聚焦、返回键映射；并确认非触屏（桌面）行为不变。
+# 手游版 M1：虚拟摇杆直接写移动向量、触屏显示条件、选牌点按聚焦、返回键映射；并确认非触屏（桌面）行为不变。
 # 期望值均为独立写出的数值/表格，不调用被测函数计算期望。
 
 const TouchControlsS := preload("res://scripts/touch_controls.gd")
@@ -23,11 +23,12 @@ func _init() -> void:
 
 func _run() -> void:
 	_test_stick_math()
-	_test_injection()
+	_test_direct_move()
 	_test_back_action()
 	await _test_touch_layer()
 	await _test_draft_cards()
 	TouchControlsS.force_touch = -1
+	TouchControlsS._clear_move()
 	if _failures.is_empty():
 		print("TOUCH_INPUT_OK")
 		quit(0)
@@ -45,21 +46,31 @@ func _test_stick_math() -> void:
 	_expect_vec(TouchControlsS.stick_vector(Vector2(10, 10), 0.0), Vector2.ZERO, "zero radius is safe")
 
 
-func _test_injection() -> void:
-	# InputMap 的 move_* deadzone = 0.2；get_vector 对长度 L 的输入输出 (L-0.2)/0.8 的长度
-	TouchControlsS.apply_vector(Vector2(0.6, -0.8))
-	_expect_vec(Input.get_vector("move_left", "move_right", "move_up", "move_down"), Vector2(0.6, -0.8), "full-tilt stick drives player vector")
-	_expect(Input.is_action_pressed("move_right") and Input.is_action_pressed("move_up"), "right+up pressed")
-	_expect(not Input.is_action_pressed("move_left") and not Input.is_action_pressed("move_down"), "opposite actions released")
-	TouchControlsS.apply_vector(Vector2(-0.3, 0.4))  # 长度 0.5 → 输出长度 0.375
-	_expect_vec(Input.get_vector("move_left", "move_right", "move_up", "move_down"), Vector2(-0.225, 0.3), "partial tilt rescaled by deadzone")
-	_expect(not Input.is_action_pressed("move_right") and not Input.is_action_pressed("move_up"), "direction flip releases old actions")
-	TouchControlsS.apply_vector(Vector2(0.1, 0.0))
-	_expect_vec(Input.get_vector("move_left", "move_right", "move_up", "move_down"), Vector2.ZERO, "inside deadzone -> no movement")
-	TouchControlsS.release_all()
-	_expect_vec(Input.get_vector("move_left", "move_right", "move_up", "move_down"), Vector2.ZERO, "release_all stops movement")
+func _test_direct_move() -> void:
+	# 直接向量：无 InputMap deadzone 重映射；小偏转也必须跟手（变异：若仍走 get_vector 会死区归零）
+	TouchControlsS.move_active = true
+	TouchControlsS.move_vector = Vector2(0.6, -0.8)
+	_expect_vec(TouchControlsS.movement_dir(), Vector2(0.6, -0.8), "full-tilt direct vector")
+	TouchControlsS.move_vector = Vector2(-0.3, 0.4)
+	_expect_vec(TouchControlsS.movement_dir(), Vector2(-0.3, 0.4), "partial tilt not remapped by deadzone")
+	TouchControlsS.move_vector = Vector2(0.1, 0.0)
+	_expect_vec(TouchControlsS.movement_dir(), Vector2(0.1, 0.0), "small deflection still moves (bypasses 0.2 deadzone)")
+	# 未激活时与桌面一致：走 Input.get_vector，且不污染 move_* 动作
+	TouchControlsS._clear_move()
+	_expect(not TouchControlsS.move_active, "clear deactivates direct move")
+	_expect_vec(TouchControlsS.movement_dir(), Vector2.ZERO, "inactive direct move falls through to empty Input")
 	for a in ["move_left", "move_right", "move_up", "move_down"]:
-		_expect(not Input.is_action_pressed(a), "%s released" % a)
+		_expect(not Input.is_action_pressed(a), "%s not injected" % a)
+	# 桌面键盘路径：模拟 action 后 movement_dir 必须等于 get_vector（变异：若总是返回 move_vector 会失败）
+	Input.action_press("move_right", 1.0)
+	_expect_vec(TouchControlsS.movement_dir(), Input.get_vector("move_left", "move_right", "move_up", "move_down"), "desktop path matches get_vector")
+	_expect_vec(TouchControlsS.movement_dir(), Vector2(1, 0), "keyboard right via movement_dir")
+	# 摇杆优先：激活直接向量时忽略 InputMap（变异：若先读 Input 会得到 (1,0)）
+	TouchControlsS.move_active = true
+	TouchControlsS.move_vector = Vector2(0, -1)
+	_expect_vec(TouchControlsS.movement_dir(), Vector2(0, -1), "direct stick overrides InputMap")
+	TouchControlsS._clear_move()
+	Input.action_release("move_right")
 
 
 func _test_back_action() -> void:
@@ -79,6 +90,7 @@ func _test_touch_layer() -> void:
 	root.add_child(fake)
 	# 桌面（非触屏）：默认不显示，暂停按钮隐藏
 	TouchControlsS.force_touch = -1
+	TouchControlsS._clear_move()
 	var desktop: TouchControls = TouchControlsS.new()
 	desktop.main = fake
 	root.add_child(desktop)
@@ -97,14 +109,23 @@ func _test_touch_layer() -> void:
 	drag.index = 0
 	drag.position = Vector2(290, 400)  # 向右满偏
 	desktop._input(drag)
-	_expect_vec(Input.get_vector("move_left", "move_right", "move_up", "move_down"), Vector2(1, 0), "drag injects full right")
+	_expect(TouchControlsS.move_active, "drag activates direct move")
+	_expect_vec(TouchControlsS.movement_dir(), Vector2(1, 0), "drag writes full right directly")
+	_expect(not Input.is_action_pressed("move_right"), "drag does not inject InputMap")
+	# 小偏转跟手：9px / 90 = 0.1，若仍走 InputMap deadzone 0.2 会得到 ZERO
+	var micro := InputEventScreenDrag.new()
+	micro.index = 0
+	micro.position = Vector2(209, 400)
+	desktop._input(micro)
+	_expect_vec(TouchControlsS.movement_dir(), Vector2(0.1, 0), "micro drag follows without deadzone lag")
 	var up := InputEventScreenTouch.new()
 	up.index = 0
 	up.pressed = false
-	up.position = drag.position
+	up.position = micro.position
 	desktop._input(up)
 	_expect(not desktop.is_stick_active(), "lift ends stick")
-	_expect_vec(Input.get_vector("move_left", "move_right", "move_up", "move_down"), Vector2.ZERO, "lift releases movement")
+	_expect(not TouchControlsS.move_active, "lift clears direct move")
+	_expect_vec(TouchControlsS.movement_dir(), Vector2.ZERO, "lift stops movement")
 	# 右半屏触摸不启动摇杆
 	var right := InputEventScreenTouch.new()
 	right.index = 1
@@ -121,13 +142,14 @@ func _test_touch_layer() -> void:
 	fake.state = "wave"
 	await process_frame
 	_expect(desktop.pause_button.visible, "pause button visible in wave on touch")
-	# 摇杆进行中暂停：必须释放已注入的动作，避免恢复后角色自己走
+	# 摇杆进行中暂停：必须清掉直接向量，避免恢复后角色自己走
 	desktop._input(ev)
 	desktop._input(drag)
 	fake.paused = true
 	await process_frame
 	_expect(not desktop.is_stick_active(), "pausing ends stick")
-	_expect(not Input.is_action_pressed("move_right"), "pausing releases injected action")
+	_expect(not TouchControlsS.move_active, "pausing clears direct move")
+	_expect_vec(TouchControlsS.movement_dir(), Vector2.ZERO, "pausing stops movement")
 	fake.paused = false
 	desktop.pause_button.pressed.emit()
 	_expect(fake.pause_requests == 1, "pause button requests pause")
