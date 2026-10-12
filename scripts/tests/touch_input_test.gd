@@ -105,9 +105,25 @@ func _test_touch_layer() -> void:
 	desktop._input(ev)
 	_expect(desktop.touch_enabled, "first screen touch enables touch mode")
 	_expect(desktop.is_stick_active(), "touch in left half grabs the stick during gameplay")
+	_expect_vec(desktop.stick_origin(), Vector2(200, 400), "stick center is press position A")
+	# 松手后隐藏，再在另一处按下：中心必须跟新触点（自由呼出）
+	var lift_a := InputEventScreenTouch.new()
+	lift_a.index = 0
+	lift_a.pressed = false
+	lift_a.position = Vector2(200, 400)
+	desktop._input(lift_a)
+	_expect(not desktop.is_stick_active(), "release hides stick")
+	var ev_b := InputEventScreenTouch.new()
+	ev_b.index = 0
+	ev_b.pressed = true
+	ev_b.position = Vector2(120, 520)
+	desktop._input(ev_b)
+	_expect(desktop.is_stick_active(), "second press re-shows stick")
+	_expect_vec(desktop.stick_origin(), Vector2(120, 520), "stick center follows press position B")
+	# 从 B 拖到满偏右，仍直接写 move_vector
 	var drag := InputEventScreenDrag.new()
 	drag.index = 0
-	drag.position = Vector2(290, 400)  # 向右满偏
+	drag.position = Vector2(210, 520)  # 自 B 向右满偏
 	desktop._input(drag)
 	_expect(TouchControlsS.move_active, "drag activates direct move")
 	_expect_vec(TouchControlsS.movement_dir(), Vector2(1, 0), "drag writes full right directly")
@@ -115,7 +131,7 @@ func _test_touch_layer() -> void:
 	# 小偏转跟手：9px / 90 = 0.1，若仍走 InputMap deadzone 0.2 会得到 ZERO
 	var micro := InputEventScreenDrag.new()
 	micro.index = 0
-	micro.position = Vector2(209, 400)
+	micro.position = Vector2(129, 520)  # 自 B 右偏 9px → 0.1
 	desktop._input(micro)
 	_expect_vec(TouchControlsS.movement_dir(), Vector2(0.1, 0), "micro drag follows without deadzone lag")
 	var up := InputEventScreenTouch.new()

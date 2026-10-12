@@ -3,6 +3,7 @@ class_name TouchControls
 # 触屏操作层（手游版 M1）：浮动虚拟摇杆 + 暂停按钮。
 # - 摇杆在触摸事件里直接写入 move_vector，player 经 movement_dir() 读取，不经 InputMap，
 #   避免 deadzone 重映射造成的跟手延迟；桌面端 move_active=false，仍走原 Input.get_vector。
+# - 呼出位置自由：左半屏按下处即为摇杆中心，松手后隐藏并清零移动；仅触屏显示。
 # - 仅在触屏设备上显示：移动端导出（OS feature "mobile"）启动即启用；桌面端只有真的收到
 #   InputEventScreenTouch 才启用，因此没有触屏的桌面行为与原来完全一致。
 
@@ -146,8 +147,9 @@ func _input(event: InputEvent) -> void:
 		var t := event as InputEventScreenTouch
 		if t.pressed and _stick_index < 0 and gameplay_active() and _in_stick_zone(t.position):
 			_stick_index = t.index
-			_stick_origin = t.position
+			_stick_origin = t.position  # 按下处即为中心（自由呼出）
 			_stick_pos = t.position
+			_last_knob = Vector2(INF, INF)  # 强制重绘新中心
 			_update_stick()
 			get_viewport().set_input_as_handled()
 		elif not t.pressed and t.index == _stick_index:
@@ -189,6 +191,10 @@ func _end_stick() -> void:
 
 func is_stick_active() -> bool:
 	return _stick_index >= 0
+
+
+func stick_origin() -> Vector2:
+	return _stick_origin
 
 
 func _draw_stick() -> void:
