@@ -62,22 +62,9 @@ jobs:
           Copy-Item tmp_templates\templates\windows_release_x86_64.exe "$dst\" -Force
           Copy-Item tmp_templates\templates\windows_debug_x86_64.exe "$dst\" -Force
 
-      - name: Import and smoke test
+      - name: Run all tests (unified runner)
         shell: pwsh
-        run: |
-          $g = '.\.tools\godot\godot_console.exe'
-          ./ci/run-check.ps1 -Name import -Exe $g -Arguments '--headless','--path','.','--import'
-          ./ci/run-check.ps1 -Name smoke -Exe $g -Arguments '--headless','--path','.','--','--smoke' -SuccessMarker 'SMOKE_OK'
-
-      - name: Core regression tests
-        shell: pwsh
-        run: |
-          $g = '.\.tools\godot\godot_console.exe'
-          ./ci/run-check.ps1 -Name boss-test -Exe $g -Arguments '--headless','--path','.','--','--boss-test' -SuccessMarker 'BOSS_TEST_OK'
-          ./ci/run-check.ps1 -Name sawblade-test -Exe $g -Arguments '--headless','--path','.','--script','res://scripts/tests/sawblade_cooldown_test.gd' -SuccessMarker 'SAWBLADE_COOLDOWN_OK'
-          ./ci/run-check.ps1 -Name spawn-curve-test -Exe $g -Arguments '--headless','--path','.','--script','res://scripts/tests/spawn_curve_test.gd' -SuccessMarker 'SPAWN_CURVE_OK'
-          ./ci/run-check.ps1 -Name sim -Exe $g -Arguments '--headless','--path','.','--','--sim' -SuccessMarker 'SIM_OK'
-          ./ci/run-check.ps1 -Name soak -Exe $g -Arguments '--headless','--path','.','--','--soak' -SuccessMarker 'SOAK_OK'
+        run: ./ci/run-tests.ps1 -Godot .\.tools\godot\godot_console.exe
 
       - name: Export exe
         shell: pwsh

@@ -26,15 +26,17 @@ python tools_setup_godot.py        # 下载引擎到 .tools/godot/
 
 ## 本地验收
 
+统一入口（需要 PowerShell 7；CI 使用同一脚本）：
+
 ```bash
-.tools/godot/godot_console.exe --headless --path . --import
-.tools/godot/godot_console.exe --headless --path . -- --boss-test
-.tools/godot/godot_console.exe --headless --path . --script res://scripts/tests/sawblade_cooldown_test.gd
-.tools/godot/godot_console.exe --headless --path . --script res://scripts/tests/spawn_curve_test.gd
-.tools/godot/godot_console.exe --headless --path . -- --smoke
-.tools/godot/godot_console.exe --headless --path . -- --sim
-.tools/godot/godot_console.exe --headless --path . -- --soak
+pwsh ./ci/run-tests.ps1                                   # 全部检查，默认使用 .tools/godot/godot_console.exe
+pwsh ./ci/run-tests.ps1 -Quick                            # 跳过耗时的 soak
+pwsh ./ci/run-tests.ps1 -Only boss-test,sim               # 只运行指定检查
+pwsh ./ci/run-tests.ps1 -List                             # 列出全部检查项
+pwsh ./ci/run-tests.ps1 -Godot /path/to/godot             # 指定其他 Godot 4.4.1 可执行文件（也可设环境变量 GODOT）
 ```
+
+检查顺序：registry（确认 `scripts/tests/*_test.gd` 都已登记）→ import → smoke → boss-test → sawblade-test → spawn-curve-test → sim → soak。新增独立测试脚本时，要在 `ci/run-tests.ps1` 的检查清单或 `scripts/tests/boss_test_runner.gd` 中登记。
 
 ## 自动构建
 
