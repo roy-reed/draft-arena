@@ -8,10 +8,10 @@ Brotato 式短局肉鸽竞技场 + 经验升级选卡构筑，像素风，Godot 
 
 ## 文档索引（权威顺序）
 
-1. `GDD.md` — 权威设计源：数值表、牌表（39 张）、机制规则。**改机制必须先读对应章节，改完同步更新。**
-2. `PROGRESS.md` — 进度日志（倒序，每次收工追加 ≤5 行）。**交付前必须追加。**
-3. `ART_SPEC.md` — 美术规格：`art/` 下 PNG 同名替换即换皮，生成器 `tools_gen_art.py`（纯标准库）。
-4. `INTEGRATION.md` / `AUDIO_INTEGRATION.md` — fx.gd / audio.gd 接线参考。
+1. `docs/GDD.md` — 权威设计源：数值表、牌表（39 张）、机制规则。**改机制必须先读对应章节，改完同步更新。**
+2. `docs/PROGRESS.md` — 进度日志（倒序，每次收工追加 ≤5 行）。**交付前必须追加。**
+3. `docs/ART_SPEC.md` — 美术规格：`art/` 下 PNG 同名替换即换皮，生成器 `tools_gen_art.py`（纯标准库）。
+4. `docs/INTEGRATION.md` / `docs/AUDIO_INTEGRATION.md` — fx.gd / audio.gd 接线参考。
 
 ## 环境引导（首次 clone 后）
 
@@ -47,8 +47,8 @@ $GODOT --path . -- --shot                      # UI/视觉改动必跑：真实�
 
 1. clone → 引导脚本 → `--import` + `--smoke`（先验基线全绿再动手）。
 2. 按 GDD 章节/PROGRESS.md「下次目标」领任务；一次改动一个目标。
-3. 交付 = 四件套全绿 + GDD 同步更新 + PROGRESS.md 追加一行 + commit（信息写改动要点与验证结果）。
-4. 不确定的设计决策不要拍板：在 PROGRESS.md 记「待 Roy 决策」并停下。
+3. 交付 = 四件套全绿 + GDD 同步更新 + docs/PROGRESS.md 追加一行 + commit（信息写改动要点与验证结果）。
+4. 不确定的设计决策不要拍板：在 docs/PROGRESS.md 记「待 Roy 决策」并停下。
 
 ## 构建（可选，需先装导出模板）
 
@@ -60,4 +60,4 @@ export_presets.cfg 已配好（内嵌 PCK 单文件）。注意：目标 exe 被
 
 ## 当前状态
 
-见 PROGRESS.md 顶部。里程碑看 GDD.md §6。永久卡死/需要 Roy 拍板的事项标注在 PROGRESS.md。
+见 docs/PROGRESS.md 顶部。里程碑看 docs/GDD.md §6。永久卡死/需要 Roy 拍板的事项标注在 docs/PROGRESS.md。

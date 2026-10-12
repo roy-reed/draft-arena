@@ -3,7 +3,7 @@ extends RefCounted
 # kind: "weapon" 当前武器的专属升级卡（玩家武器开局即定，永不换武器）；"passive" 可叠加被动
 # owner: 升级卡的专属角色；选牌池只出「当前武器 && 下一等级」的升级卡
 # m0: true 初始即在牌池；其余按 UNLOCK_ORDER 花金币解锁（仅被动）
-# 武器线：每把武器 2 级强化（u2/u3），完整牌表见 GDD.md 第 5 节
+# 武器线：每把武器 2 级强化（u2/u3），完整牌表见 docs/GDD.md 第 5 节
 
 const WEAPONS := {
 	"w_dragon": {"name": "龙狙", "interval_mult": 1.55},
