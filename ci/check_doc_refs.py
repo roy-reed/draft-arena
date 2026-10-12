@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """校验仓库内对 Markdown 文档的引用都能从仓库根目录解析（文档搬到 docs/ 后防止遗留旧路径）。
 
-规则：受版本控制的文本文件里，形如 `NAME.md`、`docs/NAME.md`、`store/NAME.md` 的引用
-（NAME 为大写字母/下划线）必须对应存在的文件。文档自身首行标题（`# NAME.md — ...`）不算引用。
+规则：受版本控制的文本文件里，以大写字母/下划线命名、扩展名为 .md 的文档引用（可带 docs/、store/ 等目录前缀）
+必须对应存在的文件。文档自身首行标题不算引用。
 """
 import re
 import subprocess
