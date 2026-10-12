@@ -1,7 +1,8 @@
 extends CanvasLayer
 class_name TouchControls
 # 触屏操作层（手游版 M1）：浮动虚拟摇杆 + 暂停按钮。
-# - 摇杆把输入注入现有的 move_left/right/up/down 动作，player.gd 的 Input.get_vector 无需改动。
+# - 摇杆在触摸事件里直接写入 move_vector，player 经 movement_dir() 读取，不经 InputMap，
+#   避免 deadzone 重映射造成的跟手延迟；桌面端 move_active=false，仍走原 Input.get_vector。
 # - 仅在触屏设备上显示：移动端导出（OS feature "mobile"）启动即启用；桌面端只有真的收到
 #   InputEventScreenTouch 才启用，因此没有触屏的桌面行为与原来完全一致。
 
@@ -14,8 +15,13 @@ const STICK_RADIUS := 90.0        # 摇杆最大偏移（视口像素，基准 1
 const STICK_ZONE_X := 0.5         # 左半屏按下才启动摇杆
 const PAUSE_BTN_SIZE := Vector2(72, 72)
 const GAMEPLAY_STATES := ["inter", "wave"]  # 允许摇杆与暂停按钮的状态
+# 摇杆视觉位置变化超过该平方距离才 queue_redraw（约 0.5px），避免无意义重绘
+const REDRAW_EPS2 := 0.25
 
 static var force_touch := -1  # 测试用：-1 自动，0 强制关，1 强制开
+# 触摸直接写入的移动向量；move_active 时 movement_dir() 优先返回它，绕过 InputMap
+static var move_active := false
+static var move_vector := Vector2.ZERO
 
 var main: Node = null             # 需提供 state、paused 与 request_pause()
 var touch_enabled := false
@@ -23,8 +29,9 @@ var pause_button: Button
 var _stick_index := -1
 var _stick_origin := Vector2.ZERO
 var _stick_pos := Vector2.ZERO
-var _injected := false
 var _stick_draw: Node2D
+var _draw_dirty := false
+var _last_knob := Vector2(INF, INF)
 var safe_root: Control
 var last_input_touch := false
 
@@ -35,7 +42,7 @@ static func detect_touch_device() -> bool:
 	return OS.has_feature("mobile")
 
 
-# 纯函数：触点相对摇杆中心的偏移 → 归一化摇杆向量（长度 ≤ 1）。死区交给 InputMap 的 deadzone 处理。
+# 纯函数：触点相对摇杆中心的偏移 → 归一化摇杆向量（长度 ≤ 1）。无 InputMap deadzone。
 static func stick_vector(offset: Vector2, radius: float) -> Vector2:
 	if radius <= 0.0:
 		return Vector2.ZERO
@@ -43,27 +50,16 @@ static func stick_vector(offset: Vector2, radius: float) -> Vector2:
 	return v.limit_length(1.0)
 
 
-# 把摇杆向量写入 move_* 动作强度；零向量释放全部动作。
-static func apply_vector(v: Vector2) -> void:
-	_set_axis("move_left", "move_right", v.x)
-	_set_axis("move_up", "move_down", v.y)
+# 玩家移动读取入口：触屏摇杆激活时用直接向量，否则与桌面一致走 Input.get_vector。
+static func movement_dir() -> Vector2:
+	if move_active:
+		return move_vector
+	return Input.get_vector("move_left", "move_right", "move_up", "move_down")
 
 
-static func release_all() -> void:
-	for a in ACTIONS:
-		Input.action_release(a)
-
-
-static func _set_axis(neg: String, pos: String, value: float) -> void:
-	if value > 0.0:
-		Input.action_release(neg)
-		Input.action_press(pos, value)
-	elif value < 0.0:
-		Input.action_release(pos)
-		Input.action_press(neg, -value)
-	else:
-		Input.action_release(neg)
-		Input.action_release(pos)
+static func _clear_move() -> void:
+	move_active = false
+	move_vector = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -124,6 +120,9 @@ func gameplay_active() -> bool:
 
 func _process(_delta: float) -> void:
 	_refresh()
+	if _draw_dirty:
+		_draw_dirty = false
+		_stick_draw.queue_redraw()
 
 
 func _refresh() -> void:
@@ -171,18 +170,21 @@ func _update_stick() -> void:
 	if not gameplay_active():
 		_end_stick()
 		return
-	apply_vector(stick_vector(_stick_pos - _stick_origin, STICK_RADIUS))
-	_injected = true
-	_stick_draw.queue_redraw()
+	# 触摸事件内直接写向量，保证早于同帧 _physics_process 的玩家读取
+	move_vector = stick_vector(_stick_pos - _stick_origin, STICK_RADIUS)
+	move_active = true
+	var knob := _stick_origin + move_vector * STICK_RADIUS
+	if knob.distance_squared_to(_last_knob) > REDRAW_EPS2:
+		_last_knob = knob
+		_draw_dirty = true
 
 
 func _end_stick() -> void:
 	_stick_index = -1
-	if _injected:
-		release_all()
-		_injected = false
+	_clear_move()
+	_last_knob = Vector2(INF, INF)
 	if _stick_draw != null:
-		_stick_draw.queue_redraw()
+		_draw_dirty = true
 
 
 func is_stick_active() -> bool:
@@ -201,3 +203,8 @@ func _draw_stick() -> void:
 func _on_pause_pressed() -> void:
 	if main != null and main.has_method("request_pause"):
 		main.request_pause()
+
+
+func _exit_tree() -> void:
+	if move_active:
+		_clear_move()

@@ -212,7 +212,7 @@ func add_max_hp(v: float) -> void:
 func _physics_process(delta: float) -> void:
 	if not active or dead:
 		return
-	var dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var dir := TouchControls.movement_dir()
 	var move_mult := 1.25 if swift_t > 0.0 else 1.0
 	position += dir * speed * move_mult * delta
 	position = position.clamp(arena.position + Vector2.ONE * radius, arena.end - Vector2.ONE * radius)
