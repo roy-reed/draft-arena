@@ -2,6 +2,14 @@
 
 Brotato 式短局肉鸽竞技场 + 经验升级选卡构筑。像素风，Godot 4.4.1，目标低价买断上架 Steam（先 Next Fest）。单人开发，agent 协作推进。
 
+## 下载游玩
+
+只想玩游戏：到 **[Releases 最新版本](https://github.com/roy-reed/draft-arena/releases/latest)** 下载 `DraftArena-<版本>-windows-x86_64.zip`，解压后双击 `DraftArena.exe` 即可运行，无需安装。
+
+- 系统要求：Windows 10/11 64 位；显卡支持 OpenGL 3.3（游戏使用 Godot Compatibility 渲染器）。目前只提供 Windows 版。
+- 未签名提示：程序没有代码签名，首次运行时 Windows SmartScreen 可能提示“Windows 已保护你的电脑”。确认文件来自本仓库 Releases 后，点“更多信息”→“仍要运行”。
+- 校验（可选）：同页的 `SHA256SUMS.txt` 记录了 zip 的 SHA-256。可以在 PowerShell 中运行 `Get-FileHash .\DraftArena-<版本>-windows-x86_64.zip -Algorithm SHA256` 比对。
+
 ## 快速开始
 
 ```bash
@@ -19,10 +27,10 @@ python tools_setup_godot.py        # 下载引擎到 .tools/godot/
 
 | 文档 | 内容 |
 |---|---|
-| [GDD.md](GDD.md) | 权威设计源：机制、数值表、39 张牌表、里程碑 |
-| [PROGRESS.md](PROGRESS.md) | 进度日志（倒序，每次收工追加） |
-| [ART_SPEC.md](ART_SPEC.md) | 美术规格与替换指南 |
-| INTEGRATION.md / AUDIO_INTEGRATION.md | fx / audio 表现层接线 |
+| [docs/GDD.md](docs/GDD.md) | 权威设计源：机制、数值表、39 张牌表、里程碑 |
+| [docs/PROGRESS.md](docs/PROGRESS.md) | 进度日志（倒序，每次收工追加） |
+| [docs/ART_SPEC.md](docs/ART_SPEC.md) | 美术规格与替换指南 |
+| docs/INTEGRATION.md / docs/AUDIO_INTEGRATION.md | fx / audio 表现层接线 |
 
 ## 本地验收
 
@@ -38,7 +46,7 @@ pwsh ./ci/run-tests.ps1 -Godot /path/to/godot             # 指定其他 Godot 4
 
 检查顺序：registry（确认 `scripts/tests/*_test.gd` 都已登记）→ import → smoke → boss-test → sawblade-test → spawn-curve-test → sim → soak。新增独立测试脚本时，要在 `ci/run-tests.ps1` 的检查清单或 `scripts/tests/boss_test_runner.gd` 中登记。
 
-Linux 上可以先用 `GODOT_VERSION=4.4.1-stable GODOT_LINUX_SHA512=<见 tests-linux.yml> ./ci/install-godot-linux.sh` 下载 Godot（会校验官方 SHA-512），再运行 `pwsh ./ci/run-tests.ps1 -Godot .tools/godot-linux/godot`。CI 中的 `tests-linux` 工作流就是这样执行的。
+Linux 上可以先用 `GODOT_VERSION=4.4.1-stable GODOT_LINUX_SHA512=<见 tests-linux.yml> ./ci/install-godot-linux.sh` 下载 Godot（会校验官方 SHA-512），再运行 `pwsh ./ci/run-tests.ps1 -Godot .tools/godot-linux/godot`。CI 中的 `tests-linux` 工作流就是这样执行的。PR 上只跑快速模式（`-Quick`，不含 soak）；推送到 main、每日定时（03:17 北京时间）和手动触发时跑完整 soak。Windows 构建始终用快速模式。文档引用由 `python3 ci/check_doc_refs.py` 校验。
 
 ## 自动构建
 

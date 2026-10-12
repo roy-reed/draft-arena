@@ -6,6 +6,8 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  # release.yml 在推送 v* 标签时复用本工作流构建 Windows 版
+  workflow_call:
 
 permissions:
   contents: read
@@ -62,9 +64,10 @@ jobs:
           Copy-Item tmp_templates\templates\windows_release_x86_64.exe "$dst\" -Force
           Copy-Item tmp_templates\templates\windows_debug_x86_64.exe "$dst\" -Force
 
-      - name: Run all tests (unified runner)
+      # Windows 上始终跑快速模式（不含 soak），完整 soak 由 tests-linux 在 push main / 定时运行
+      - name: Run tests (unified runner, quick)
         shell: pwsh
-        run: ./ci/run-tests.ps1 -Godot .\.tools\godot\godot_console.exe
+        run: ./ci/run-tests.ps1 -Godot .\.tools\godot\godot_console.exe -Quick
 
       - name: Export exe
         shell: pwsh

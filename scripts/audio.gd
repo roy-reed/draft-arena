@@ -4,7 +4,7 @@ extends Node
 # 与 fx.gd 同一套模式：main 把本节点 add_child 进树后，任何脚本直接调用静态方法（如 SFX.play("shoot")），无需 preload。
 # 未挂载（I == null）或 enabled == false 时所有调用静默跳过，headless 与 smoke 自测零副作用。
 # 无 BGM、不引用外部素材、不使用麦克风；音色固定（噪声用固定种子 LCG，可复现），仅播放时可做 ±5% 音高抖动。
-# 音量只作用于 Master 总线且不落盘，持久化由主流程负责；接线说明见 AUDIO_INTEGRATION.md。
+# 音量只作用于 Master 总线且不落盘，持久化由主流程负责；接线说明见 docs/AUDIO_INTEGRATION.md。
 
 static var I: SFX = null
 

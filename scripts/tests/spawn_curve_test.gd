@@ -26,10 +26,15 @@ func _run() -> void:
 
 	_expect(SpawnCurveS.scaled_density(8, 1.2) == 10, "opening density rounds 8 to 10")
 	_expect(SpawnCurveS.scaled_density(32, 2.0) == 64, "late density reaches 64")
-	_expect(SpawnCurveS.scaled_density(32, 2.3) == SpawnCurveS.MAX_ACTIVE_ENEMIES, "density obeys hard cap")
+	_expect(SpawnCurveS.scaled_density(32, 2.3) == 64, "density obeys hard cap of 64 (GDD)")
 	_expect(SpawnCurveS.campaign_density(8, 1, total_waves) == 10, "campaign density shares multiplier and rounding")
 	_expect_close(SpawnCurveS.interval_for(12.0, 10), 1.2, "spawn interval follows target density")
-	_expect_close(SpawnCurveS.interval_for(1.0, 64), SpawnCurveS.MIN_SPAWN_INTERVAL, "spawn interval obeys frame-safe floor")
+	# 期望值取自 GDD「最短刷怪间隔 0.16s」，不引用被测常量，避免常量改动后测试仍自洽通过
+	const DESIGN_MIN_SPAWN_INTERVAL := 0.16
+	_expect_close(SpawnCurveS.interval_for(1.0, 64), DESIGN_MIN_SPAWN_INTERVAL, "spawn interval obeys frame-safe floor (0.16s)")
+	_expect_close(SpawnCurveS.interval_for(1.6, 10), DESIGN_MIN_SPAWN_INTERVAL, "interval exactly at floor stays 0.16s")
+	_expect_close(SpawnCurveS.interval_for(1.7, 10), 0.17, "interval just above floor is not clamped")
+	_expect_close(SpawnCurveS.interval_for(-5.0, 10), DESIGN_MIN_SPAWN_INTERVAL, "negative window clamps to floor")
 
 	var shaken_parent := Node2D.new()
 	shaken_parent.position = Vector2(37.0, -19.0)

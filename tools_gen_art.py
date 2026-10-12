@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """生成占位像素精灵（纯标准库，无第三方依赖）。
 用法：python tools_gen_art.py（在项目根目录运行）
-产物：art/*.png，由 scripts/art.gd 的 ArtS.skin() 加载（同名替换即换皮，见 ART_SPEC.md）。
+产物：art/*.png，由 scripts/art.gd 的 ArtS.skin() 加载（同名替换即换皮，见 docs/ART_SPEC.md）。
 设计：三角色带专属武器特征（枪/刃/双管），敌人/首领各有轮廓辨识度，四层色阶+描边。
 """
 import os
