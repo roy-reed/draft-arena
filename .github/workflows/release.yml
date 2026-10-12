@@ -1,0 +1,47 @@
+name: release
+
+# 推送 v* 标签时发布可直接游玩的 Windows 版：
+# 复用 build-windows（Godot 与导出模板 SHA-512 校验 → 快速测试 → 导出 → 导出产物 smoke），
+# 打成 zip，生成 SHA256SUMS.txt，用 gh release create 上传到 GitHub Releases。
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-windows:
+    uses: ./.github/workflows/build-windows.yml
+
+  publish:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write   # 仅此 job 需要写权限以创建 Release
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: DraftArena-win64
+          path: build
+
+      - name: Package zip and checksums
+        run: ./ci/package-release.sh "$TAG" build/DraftArena.exe dist
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "$TAG" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "$TAG" dist/* \
+            --verify-tag --title "Draft Arena $TAG" --generate-notes $prerelease
