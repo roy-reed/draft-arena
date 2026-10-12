@@ -30,6 +30,13 @@ var _banner_tw: Tween
 var hint_label: Label
 var _hint_tw: Tween
 var combo_label: Label
+# 触屏模式（M1）：由 TouchControls.touch_mode_changed 驱动；false 时与桌面原行为完全一致
+var touch_mode := false
+var draft_detail: Label
+var _draft_cards: Array = []
+var _draft_focus := -1
+var over_restart_btn: Button
+var over_restart_cb := Callable()
 
 func _ready() -> void:
 	layer = 10
@@ -227,16 +234,27 @@ func _build_draft() -> void:
 		b.custom_minimum_size = Vector2(230, 130)
 		b.add_theme_font_size_override("font_size", 16)
 		b.pivot_offset = b.custom_minimum_size / 2.0
+		# 悬停放大只用于鼠标；触屏上由“点按聚焦”代替（触摸模拟的鼠标事件不触发悬停）
 		b.mouse_entered.connect(func():
+			if touch_mode:
+				return
 			b.scale = Vector2(1.06, 1.06)
 			b.z_index = 1)
 		b.mouse_exited.connect(func():
+			if touch_mode:
+				return
 			b.scale = Vector2.ONE
 			b.z_index = 0)
 		b.pressed.connect(_on_draft_pressed.bind(i))
 		hb.add_child(b)
 		draft_buttons.append(b)
 	vb.add_child(hb)
+	draft_detail = _label("", 20)
+	draft_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	draft_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	draft_detail.custom_minimum_size = Vector2(722, 0)
+	draft_detail.visible = false
+	vb.add_child(draft_detail)
 	draft_panel.add_child(vb)
 	draft_center.add_child(draft_panel)
 	add_child(draft_center)
@@ -251,6 +269,15 @@ func _build_over() -> void:
 	over_label = _label("", 22)
 	over_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(over_label)
+	over_restart_btn = _menu_btn()
+	over_restart_btn.text = "重开"
+	over_restart_btn.add_theme_font_size_override("font_size", 22)
+	over_restart_btn.custom_minimum_size = Vector2(420, 64)
+	over_restart_btn.visible = false
+	over_restart_btn.pressed.connect(func():
+		if over_restart_cb.is_valid():
+			over_restart_cb.call())
+	vb.add_child(over_restart_btn)
 	panel.add_child(vb)
 	over_center.add_child(panel)
 	add_child(over_center)
@@ -381,7 +408,31 @@ func hide_boss() -> void:
 func set_boss(hp: float, max_hp: float) -> void:
 	boss_fill.size.x = 596.0 * clampf(hp / max_hp, 0.0, 1.0)
 
+func set_touch_mode(v: bool) -> void:
+	touch_mode = v
+	if over_restart_btn != null:
+		over_restart_btn.visible = v
+	_set_draft_focus(-1)
+
+func _set_draft_focus(i: int) -> void:
+	_draft_focus = i
+	for j in draft_buttons.size():
+		var b: Button = draft_buttons[j]
+		b.scale = Vector2(1.06, 1.06) if j == i else Vector2.ONE
+		b.z_index = 1 if j == i else 0
+	if draft_detail == null:
+		return
+	if i >= 0 and i < _draft_cards.size():
+		var c: Dictionary = _draft_cards[i]
+		draft_detail.text = "%s：%s\n再次点按这张牌确认选择" % [c["name"], c["desc"]]
+		draft_detail.visible = true
+	else:
+		draft_detail.text = ""
+		draft_detail.visible = false
+
 func show_draft(cards: Array, on_pick: Callable, title_text := "选择一张牌") -> void:
+	_draft_cards = cards.duplicate()
+	_set_draft_focus(-1)
 	draft_pick = on_pick
 	draft_title.text = title_text
 	for i in mini(3, cards.size()):
@@ -393,10 +444,16 @@ func show_draft(cards: Array, on_pick: Callable, title_text := "选择一张牌"
 func hide_draft() -> void:
 	draft_center.visible = false
 	draft_pick = Callable()
+	_set_draft_focus(-1)
 
 func _on_draft_pressed(i: int) -> void:
 	if not draft_center.visible or not draft_pick.is_valid():
 		return
+	# 触屏：第一次点按只聚焦并显示详情，再点同一张才确认，避免误触；桌面端单击即选（原行为）
+	if touch_mode and _draft_focus != i:
+		_set_draft_focus(i)
+		return
+	_set_draft_focus(-1)
 	draft_center.visible = false
 	SFX.play("click")
 	var cb := draft_pick

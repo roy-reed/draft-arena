@@ -15,6 +15,7 @@ config/description="短局肉鸽竞技场：实时走位 + 自动攻击 + 构筑
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.4", "GL Compatibility")
 config/icon="res://icon.svg"
+config/quit_on_go_back=false
 
 [display]
 

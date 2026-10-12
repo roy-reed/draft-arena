@@ -36,6 +36,7 @@ $checks = @(
     [pscustomobject]@{ Name = 'sawblade-test';    Args = $base + @('--script', 'res://scripts/tests/sawblade_cooldown_test.gd'); Marker = 'SAWBLADE_COOLDOWN_OK' }
     [pscustomobject]@{ Name = 'spawn-curve-test'; Args = $base + @('--script', 'res://scripts/tests/spawn_curve_test.gd');    Marker = 'SPAWN_CURVE_OK' }
     [pscustomobject]@{ Name = 'android-config-test'; Args = $base + @('--script', 'res://scripts/tests/android_export_config_test.gd'); Marker = 'ANDROID_CONFIG_OK' }
+    [pscustomobject]@{ Name = 'touch-input-test'; Args = $base + @('--script', 'res://scripts/tests/touch_input_test.gd'); Marker = 'TOUCH_INPUT_OK' }
     [pscustomobject]@{ Name = 'sim';              Args = $base + @('--', '--sim');                                          Marker = 'SIM_OK' }
     [pscustomobject]@{ Name = 'soak';             Args = $base + @('--', '--soak');                                         Marker = 'SOAK_OK' }
 )

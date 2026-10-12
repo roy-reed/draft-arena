@@ -13,6 +13,7 @@ const EBulletS := preload("res://scripts/ebullet.gd")
 const BoomerangS := preload("res://scripts/boomerang.gd")
 const UIS := preload("res://scripts/ui.gd")
 const PauseHookS := preload("res://scripts/pause_hook.gd")
+const TouchControlsS := preload("res://scripts/touch_controls.gd")
 const CrystalS := preload("res://scripts/crystal.gd")
 const BossEncounterS := preload("res://scripts/bosses/boss_encounter_controller.gd")
 const TwinBossEncounterS := preload("res://scripts/bosses/twin_boss_encounter_controller.gd")
@@ -114,6 +115,7 @@ var _wtest_t := 0.0
 var _wtest_base := 0.0
 var _wtest_dummies: Array = []
 var _t0 := 0
+var touch: TouchControls = null
 
 func _ready() -> void:
 	var user_args := OS.get_cmdline_user_args()
@@ -148,6 +150,12 @@ func _ready() -> void:
 	var hook := PauseHookS.new()
 	hook.main = self
 	add_child(hook)
+	touch = TouchControlsS.new()
+	touch.main = self
+	add_child(touch)
+	ui.over_restart_cb = _cb_restart
+	ui.set_touch_mode(touch.touch_enabled)
+	touch.touch_mode_changed.connect(Callable(ui, "set_touch_mode"))
 	_enter_menu()
 	if smoke:
 		meta_d["coins"] = 500
@@ -527,6 +535,40 @@ func hotkey(event: InputEvent) -> void:
 				DisplayServer.window_set_mode(
 					DisplayServer.WINDOW_MODE_WINDOWED if mode == DisplayServer.WINDOW_MODE_FULLSCREEN
 					else DisplayServer.WINDOW_MODE_FULLSCREEN)
+
+# ---- 移动端：暂停按钮、Android 返回键、切到后台（桌面端不会收到这些通知） ----
+
+const PAUSABLE_STATES := ["inter", "wave", "draft", "startpick"]
+
+# 纯函数：返回键在当前状态下的动作。暂停中→继续；对局中→暂停；结算→重开（回主菜单）；主菜单→退出。
+static func back_action(cur_state: String, is_paused: bool) -> String:
+	if is_paused:
+		return "resume"
+	if cur_state in PAUSABLE_STATES:
+		return "pause"
+	if cur_state in ["over", "win"]:
+		return "restart"
+	return "quit"
+
+func request_pause() -> void:
+	if not paused and state in PAUSABLE_STATES:
+		_set_paused(true)
+
+func handle_back() -> void:
+	if smoke:
+		return
+	match back_action(state, paused):
+		"resume": _set_paused(false)
+		"pause": _set_paused(true)
+		"restart": _cb_restart()
+		"quit": get_tree().quit()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		handle_back()
+	elif what == NOTIFICATION_APPLICATION_PAUSED:
+		if not smoke and ui != null:
+			request_pause()
 
 func _set_paused(v: bool) -> void:
 	paused = v
