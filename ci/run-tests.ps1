@@ -39,6 +39,7 @@ $checks = @(
     [pscustomobject]@{ Name = 'spawn-curve-test'; Args = $base + @('--script', 'res://scripts/tests/spawn_curve_test.gd');    Marker = 'SPAWN_CURVE_OK' }
     [pscustomobject]@{ Name = 'android-config-test'; Args = $base + @('--script', 'res://scripts/tests/android_export_config_test.gd'); Marker = 'ANDROID_CONFIG_OK' }
     [pscustomobject]@{ Name = 'touch-input-test'; Args = $base + @('--script', 'res://scripts/tests/touch_input_test.gd'); Marker = 'TOUCH_INPUT_OK' }
+    [pscustomobject]@{ Name = 'player-highlight-test'; Args = $base + @('--script', 'res://scripts/tests/player_highlight_test.gd'); Marker = 'PLAYER_HIGHLIGHT_OK' }
     [pscustomobject]@{ Name = 'screen-layout-test'; Args = $base + @('--script', 'res://scripts/tests/screen_layout_test.gd'); Marker = 'SCREEN_LAYOUT_OK' }
     [pscustomobject]@{ Name = 'collision-grid-test'; Args = $base + @('--script', 'res://scripts/tests/collision_grid_test.gd'); Marker = 'COLLISION_GRID_OK' }
     [pscustomobject]@{ Name = 'sim';              Args = $base + @('--', '--sim');                                          Marker = 'SIM_OK' }

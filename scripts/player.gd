@@ -66,6 +66,12 @@ var _cd := 0.6
 var _sawblade: Node2D = null
 var _vis: Node2D = null
 var _anim_t := 0.0
+# 着重显示（大小不变）：外发光 + 亮轮廓 + 少量环绕光点，桌面/Android 相同
+var _glow: Polygon2D = null
+var _outline: Line2D = null
+var _sparks: Node2D = null
+const HIGHLIGHT_SPARK_COUNT := 4
+const HIGHLIGHT_OUTLINE := Color(1.0, 1.0, 0.92, 0.95)
 
 const CardsS := preload("res://scripts/cards.gd")
 const SawbladeS := preload("res://scripts/sawblade.gd")
@@ -99,6 +105,7 @@ func _ready() -> void:
 		spr.scale = Vector2(s, s)
 		add_child(spr)
 		_vis = spr
+	_add_highlight()  # 轮廓/光点叠在身体之上；发光垫在身体之下
 
 func _shape_points() -> PackedVector2Array:
 	var n := 16
@@ -113,6 +120,67 @@ func _shape_points() -> PackedVector2Array:
 	for i in n:
 		pts.append(Vector2.RIGHT.rotated(TAU * i / n - PI / 2.0 + off) * radius)
 	return pts
+
+
+func _ring_points(extra: float) -> PackedVector2Array:
+	var pts := _shape_points()
+	var scale := (radius + extra) / maxf(radius, 0.001)
+	var out := PackedVector2Array()
+	for p in pts:
+		out.append(p * scale)
+	return out
+
+
+func _add_highlight() -> void:
+	# 外发光（略大于身体，不改碰撞半径 / 身体缩放）；垫到最底层
+	_glow = Polygon2D.new()
+	_glow.polygon = _ring_points(radius * 0.45)
+	var gc := body_color.lightened(0.45)
+	gc.a = 0.32
+	_glow.color = gc
+	add_child(_glow)
+	move_child(_glow, 0)
+	# 明亮轮廓贴合体型外沿（加在身体之后，画在上面）
+	_outline = Line2D.new()
+	_outline.width = 3.0
+	_outline.default_color = HIGHLIGHT_OUTLINE
+	_outline.closed = true
+	_outline.joint_mode = Line2D.LINE_JOINT_ROUND
+	_outline.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	_outline.end_cap_mode = Line2D.LINE_CAP_ROUND
+	_outline.points = _ring_points(2.0)
+	add_child(_outline)
+	# 少量环绕光点
+	_sparks = Node2D.new()
+	add_child(_sparks)
+	for i in HIGHLIGHT_SPARK_COUNT:
+		var sp := Polygon2D.new()
+		sp.color = Color(1.0, 1.0, 0.85, 0.9)
+		sp.polygon = PackedVector2Array([
+			Vector2(0, -3), Vector2(2.2, 0), Vector2(0, 3), Vector2(-2.2, 0)
+		])
+		_sparks.add_child(sp)
+	_update_sparks(0.0)
+
+
+func _update_sparks(t: float) -> void:
+	if _sparks == null:
+		return
+	var orbit := radius + 10.0
+	var n := _sparks.get_child_count()
+	for i in n:
+		var sp: Node2D = _sparks.get_child(i)
+		var ang := t * 2.2 + TAU * float(i) / float(n)
+		sp.position = Vector2.RIGHT.rotated(ang) * orbit
+
+
+func highlight_spark_count() -> int:
+	return 0 if _sparks == null else _sparks.get_child_count()
+
+
+func has_highlight() -> bool:
+	return _outline != null and is_instance_valid(_outline) and _glow != null and is_instance_valid(_glow)
+
 
 func set_weapon(id: String) -> void:
 	weapon_id = id
@@ -219,8 +287,16 @@ func _physics_process(delta: float) -> void:
 	invuln = maxf(invuln - delta, 0.0)
 	swift_t = maxf(swift_t - delta, 0.0)
 	_anim_t += delta * (6.0 if dir != Vector2.ZERO else 3.0)
+	var bob := sin(_anim_t) * 1.5  # 待机/移动浮动，让灰盒也有生命感
 	if _vis != null and is_instance_valid(_vis):
-		_vis.position.y = sin(_anim_t) * 1.5  # 待机/移动浮动，让灰盒也有生命感
+		_vis.position.y = bob
+	if _glow != null:
+		_glow.position.y = bob
+	if _outline != null:
+		_outline.position.y = bob
+	if _sparks != null:
+		_sparks.position.y = bob
+		_update_sparks(_anim_t)
 	if regen > 0.0 and hp < max_hp:
 		hp = minf(hp + regen * delta, max_hp)
 	var rate := attack_speed_mult
