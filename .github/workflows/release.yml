@@ -1,8 +1,9 @@
 name: release
 
-# 推送 v* 标签时发布可直接游玩的 Windows 版：
-# 复用 build-windows（Godot 与导出模板 SHA-512 校验 → 快速测试 → 导出 → 导出产物 smoke），
-# 打成 zip，生成 SHA256SUMS.txt，用 gh release create 上传到 GitHub Releases。
+# 推送 v* 标签时发布可直接游玩的 Windows 版与 Android 版：
+# - Windows：复用 build-windows（Godot 与导出模板 SHA-512 校验 → 快速测试 → 导出 → 导出产物 smoke），打成 zip
+# - Android：复用 android（mode=release），用 GitHub Secrets 中的正式 keystore 签名 arm64 APK
+# 生成覆盖全部产物的 SHA256SUMS.txt，用 gh release create 上传到 GitHub Releases。
 on:
   push:
     tags: ['v*']
@@ -18,8 +19,18 @@ jobs:
   build-windows:
     uses: ./.github/workflows/build-windows.yml
 
+  build-android:
+    uses: ./.github/workflows/android.yml
+    with:
+      mode: release
+      tag: ${{ github.ref_name }}
+    secrets:
+      ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+      ANDROID_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+      ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+
   publish:
-    needs: build-windows
+    needs: [build-windows, build-android]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -34,8 +45,13 @@ jobs:
           name: DraftArena-win64
           path: build
 
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: DraftArena-android-release
+          path: build-android
+
       - name: Package zip and checksums
-        run: ./ci/package-release.sh "$TAG" build/DraftArena.exe dist
+        run: ./ci/package-release.sh "$TAG" build/DraftArena.exe dist build-android/DraftArena.apk
 
       - name: Create GitHub Release
         env:

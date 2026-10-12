@@ -4,11 +4,20 @@ Brotato 式短局肉鸽竞技场 + 经验升级选卡构筑。像素风，Godot 
 
 ## 下载游玩
 
-只想玩游戏：到 **[Releases 最新版本](https://github.com/roy-reed/draft-arena/releases/latest)** 下载 `DraftArena-<版本>-windows-x86_64.zip`，解压后双击 `DraftArena.exe` 即可运行，无需安装。
+只想玩游戏：到 **[Releases 最新版本](https://github.com/roy-reed/draft-arena/releases/latest)** 下载对应平台的文件。
 
-- 系统要求：Windows 10/11 64 位；显卡支持 OpenGL 3.3（游戏使用 Godot Compatibility 渲染器）。目前只提供 Windows 版。
+**Windows**：下载 `DraftArena-<版本>-windows-x86_64.zip`，解压后双击 `DraftArena.exe` 即可运行，无需安装。
+
+- 系统要求：Windows 10/11 64 位；显卡支持 OpenGL 3.3（游戏使用 Godot Compatibility 渲染器）。
 - 未签名提示：程序没有代码签名，首次运行时 Windows SmartScreen 可能提示“Windows 已保护你的电脑”。确认文件来自本仓库 Releases 后，点“更多信息”→“仍要运行”。
 - 校验（可选）：同页的 `SHA256SUMS.txt` 记录了 zip 的 SHA-256。可以在 PowerShell 中运行 `Get-FileHash .\DraftArena-<版本>-windows-x86_64.zip -Algorithm SHA256` 比对。
+
+**Android（横屏，侧载安装，不上架应用商店）**：在手机浏览器中下载 `DraftArena-<版本>-android-arm64.apk`，打开后按提示允许“安装未知应用”即可安装。
+
+- 系统要求：Android 5.0 及以上的 64 位（arm64-v8a）手机；支持 OpenGL ES 3.0。
+- APK 使用本项目固定的发布密钥签名，后续版本可直接覆盖升级；如果提示“签名不一致”，说明文件不是从本仓库 Releases 获取的。
+- Google Play 保护机制可能提示“未知开发者”，确认来源后选择“仍然安装”。
+- 校验（可选）：`SHA256SUMS.txt` 同样包含 APK 的 SHA-256。
 
 ## 快速开始
 
