@@ -28,6 +28,8 @@ python tools_setup_godot.py        # 下载引擎到 .tools/godot/
 
 操作：WASD/手柄移动，攻击全自动，清怪攒经验升级三选一，ESC 暂停，F11 全屏。
 
+手机（Android 横屏）：左半屏按住拖动即为虚拟摇杆，攻击全自动；右上角 II 暂停，系统返回键 = 暂停/继续（结算界面为重开，主菜单为退出）；选牌时点一下查看详情，再点同一张确认。
+
 ## 代理协作
 
 见 [AGENTS.md](AGENTS.md)——验收契约（smoke/sim/soak/shot 四件套）、编码约定、工作流。
