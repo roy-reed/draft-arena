@@ -3,9 +3,14 @@ extends SceneTree
 class TestPlayer:
 	extends Node2D
 	var radius := 16.0
+	var last_damage := 0.0
+	var damage_hits := 0
+	var last_source: Node2D = null
 
-	func take_damage(_amount: float, _source: Node2D) -> void:
-		pass
+	func take_damage(amount: float, source: Node2D) -> void:
+		last_damage = amount
+		damage_hits += 1
+		last_source = source
 
 
 var _failures := PackedStringArray()
@@ -71,6 +76,8 @@ func _run() -> void:
 	_spawns.clear()
 	boss._summon_n = 0
 	boss._summon_t = SummonerBoss.INITIAL_SUMMON_DELAY
+	boss._meteor_cd = 999.0  # 召唤时序测试期间冻结陨石
+	boss._meteor_warn_t = -1.0
 	boss._physics_process(1.9)
 	_expect(_spawns.is_empty(), "initial summon waits for the full delay")
 	boss._physics_process(0.11)
@@ -94,6 +101,50 @@ func _run() -> void:
 	boss._summon()
 	_expect(_spawns.size() == 6, "seven living minions blocks an overflowing pair")
 	_expect(boss._summon_n == 3, "blocked summon does not advance elite cadence")
+
+	# ---- 陨石：预警与伤害 ----
+	_expect(SummonerBoss.meteor_hits(Vector2.ZERO, Vector2(50, 0), 90.0, 16.0), "meteor hits inside radius")
+	_expect(not SummonerBoss.meteor_hits(Vector2.ZERO, Vector2(200, 0), 90.0, 16.0), "meteor misses outside radius")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 73
+	var pos_a := SummonerBoss.pick_meteor_position(context.arena, SummonerBoss.METEOR_RADIUS, rng)
+	_expect(context.arena.grow(-SummonerBoss.METEOR_RADIUS).has_point(pos_a), "meteor spawn stays inside arena margin")
+	# 重置并跑预警→砸落
+	player.damage_hits = 0
+	player.last_damage = 0.0
+	player.position = Vector2(640.0, 360.0)
+	boss._meteor_cd = 0.0
+	boss._meteor_warn_t = -1.0
+	boss._meteor_impacts = 0
+	boss._clear_meteor_marker()
+	boss._physics_process(0.01)  # cd<=0 → begin warning
+	_expect(boss.is_meteor_warning(), "meteor enters warning after interval")
+	_expect(boss._meteor_marker != null and is_instance_valid(boss._meteor_marker), "warning shows red marker")
+	_expect_float(boss.meteor_warning_remaining(), SummonerBoss.METEOR_WARN, "warning duration starts at METEOR_WARN")
+	# 玩家站在落点上
+	player.position = boss.meteor_warning_position()
+	boss._physics_process(0.5)
+	_expect(boss.is_meteor_warning(), "still warning mid-telegraph")
+	_expect(player.damage_hits == 0, "no damage during warning")
+	boss._physics_process(0.6)  # 合计 >1s → impact
+	_expect(not boss.is_meteor_warning(), "warning ends on impact")
+	_expect(boss._meteor_impacts == 1, "one meteor impact")
+	_expect(player.damage_hits == 1, "player takes meteor damage when inside")
+	_expect_float(player.last_damage, SummonerBoss.METEOR_DAMAGE, "meteor deals configured high damage")
+	_expect(player.last_source == boss, "meteor source is boss")
+	_expect(boss._meteor_marker == null or not is_instance_valid(boss._meteor_marker), "marker cleared after impact")
+	# 落点外不受伤
+	player.damage_hits = 0
+	boss._meteor_cd = 0.0
+	boss._physics_process(0.01)
+	_expect(boss.is_meteor_warning(), "second meteor warning")
+	player.position = boss.meteor_warning_position() + Vector2(SummonerBoss.METEOR_RADIUS + player.radius + 20.0, 0.0)
+	boss._physics_process(1.05)
+	_expect(boss._meteor_impacts == 2, "second impact counted")
+	_expect(player.damage_hits == 0, "player outside radius takes no meteor damage")
+	# 约 5s 周期：砸落后 cd 回到 METEOR_INTERVAL
+	_expect_float(boss._meteor_cd, SummonerBoss.METEOR_INTERVAL, "cooldown resets to METEOR_INTERVAL after impact")
+
 
 	encounter.queue_free()
 	player.queue_free()
