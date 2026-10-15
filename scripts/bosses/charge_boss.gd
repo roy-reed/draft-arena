@@ -55,6 +55,10 @@ func _physics_process(delta: float) -> void:
 				var next_chase := encounter_context.rng.randf_range(chase_duration_min, chase_duration_max)
 				_enter_state(&"chase", next_chase)
 
+	if get_state_id() != &"chase":
+		kb = kb.move_toward(Vector2.ZERO, 900.0 * delta)
+	_keep_in_arena()
+
 
 func _enter_state(next_state: StringName, duration: float) -> void:
 	_state_time = duration

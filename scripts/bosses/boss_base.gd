@@ -81,11 +81,20 @@ func _setup_visual() -> void:
 func take_damage(amount: float, from: Node2D) -> void:
 	var previous_hp := hp
 	super(amount, from)
+	kb = kb.limit_length(155.0)
 	if not is_equal_approx(previous_hp, hp):
 		health_changed.emit(maxf(hp, 0.0), max_hp)
 	if previous_hp > 0.0 and hp <= 0.0:
 		defeated.emit(self, coin, xp)
 
+
+func _physics_process(delta: float) -> void:
+	super(delta)
+	_keep_in_arena()
+
+func _keep_in_arena() -> void:
+	position = position.clamp(arena.position + Vector2.ONE * radius, arena.end - Vector2.ONE * radius)
+	EnemyGrid.moved(self)
 
 func change_state(next_state: StringName) -> void:
 	if next_state == _state_id:
