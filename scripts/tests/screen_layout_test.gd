@@ -128,7 +128,7 @@ func _test_mobile_fonts_and_texts() -> void:
 	_eq(ui.hp_fill.get_parent().size, Vector2(338, 29), "mobile hp bar scaled")
 	_eq(ui.coin_label.global_position, Vector2(24, 161), "mobile left column spaced (124*1.3)")
 	_eq(ui.draft_buttons[0].custom_minimum_size, Vector2(299, 169), "mobile card size scaled")
-	_txt(ui.hud_hint.text, "左半屏拖动移动 · 攻击全自动 · 右上角 II 暂停", "mobile starts with touch hint")
+	_txt(ui.hud_hint.text, "任意位置按下呼出摇杆移动 · 攻击全自动 · 右上角 II 暂停", "mobile starts with touch hint")
 	_txt(ui.start_btn.text, "开始", "mobile start button has no key hint")
 	ui.set_text_touch(false)  # 接了手柄/键盘
 	_txt(ui.hud_hint.text, "WASD / 方向键移动 · 攻击全自动 · ESC 暂停 · F11 全屏", "switches to keyboard hint")

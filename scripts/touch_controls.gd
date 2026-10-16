@@ -3,7 +3,7 @@ class_name TouchControls
 # 触屏操作层（手游版 M1）：浮动虚拟摇杆 + 暂停按钮。
 # - 摇杆在触摸事件里直接写入 move_vector，player 经 movement_dir() 读取，不经 InputMap，
 #   避免 deadzone 重映射造成的跟手延迟；桌面端 move_active=false，仍走原 Input.get_vector。
-# - 呼出位置自由：左半屏按下处即为摇杆中心，松手后隐藏并清零移动；仅触屏显示。
+# - 呼出位置自由：全屏任意位置按下处即为摇杆中心（避开暂停按钮），松手后隐藏并清零移动；仅触屏显示。
 # - 仅在触屏设备上显示：移动端导出（OS feature "mobile"）启动即启用；桌面端只有真的收到
 #   InputEventScreenTouch 才启用，因此没有触屏的桌面行为与原来完全一致。
 
@@ -13,7 +13,6 @@ signal input_kind_changed(touch: bool)
 
 const ACTIONS := ["move_left", "move_right", "move_up", "move_down"]
 const STICK_RADIUS := 90.0        # 摇杆最大偏移（视口像素，基准 1280×720）
-const STICK_ZONE_X := 0.5         # 左半屏按下才启动摇杆
 const PAUSE_BTN_SIZE := Vector2(72, 72)
 const GAMEPLAY_STATES := ["inter", "wave"]  # 允许摇杆与暂停按钮的状态
 # 摇杆视觉位置变化超过该平方距离才 queue_redraw（约 0.5px），避免无意义重绘
@@ -147,7 +146,7 @@ func _input(event: InputEvent) -> void:
 		var t := event as InputEventScreenTouch
 		if t.pressed and _stick_index < 0 and gameplay_active() and _in_stick_zone(t.position):
 			_stick_index = t.index
-			_stick_origin = t.position  # 按下处即为中心（自由呼出）
+			_stick_origin = t.position  # 全屏按下处即为中心（自由呼出）
 			_stick_pos = t.position
 			_last_knob = Vector2(INF, INF)  # 强制重绘新中心
 			_update_stick()
@@ -164,8 +163,10 @@ func _input(event: InputEvent) -> void:
 
 
 func _in_stick_zone(p: Vector2) -> bool:
-	var vp := get_viewport().get_visible_rect().size
-	return p.x <= vp.x * STICK_ZONE_X
+	# 全屏可呼出；暂停按钮矩形除外，避免抢走暂停点击
+	if pause_button != null and pause_button.visible and pause_button.get_global_rect().has_point(p):
+		return false
+	return true
 
 
 func _update_stick() -> void:
