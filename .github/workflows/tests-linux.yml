@@ -24,15 +24,32 @@ env:
   GODOT_LINUX_SHA512: ef4e76880a514257175544952c61191106fdef3095b909bafed9fcbeb230c3e5533920a0f3012882dd4bbde83028a67549825794e2d2c3cf76eba7918b71370e
 
 jobs:
+  # 文档引用检查总是运行；只改文档/模板/标签目录的 PR 跳过 Godot 检查（规则见 ci/change_scope.py）
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      game: ${{ steps.scope.outputs.game }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 2   # PR 合并提交及其父提交，供 git diff 判断改动范围
+
+      - name: Check doc references
+        run: python3 ci/check_doc_refs.py
+
+      - name: Detect change scope
+        id: scope
+        run: python3 ci/change_scope.py >> "$GITHUB_OUTPUT"
+
   tests:
+    needs: changes
+    if: needs.changes.outputs.game == 'true'
     runs-on: ubuntu-latest
     # PR #13 上完整运行（含 soak）实测 7 分 08 秒；快速模式 20 分钟、完整模式 60 分钟上限
     timeout-minutes: ${{ github.event_name == 'pull_request' && 20 || 60 }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
-      - name: Check doc references
-        run: python3 ci/check_doc_refs.py
 
       - name: Cache Godot (Linux)
         id: godot-cache

@@ -5,12 +5,18 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
   # release.yml 在推送 v* 标签时复用本工作流构建 Windows 版
   workflow_call:
 
 permissions:
   contents: read
+
+# 同一 PR 有新推送时取消旧构建；main 与发布不取消
+concurrency:
+  group: build-windows-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   GODOT_VERSION: 4.4.1-stable
@@ -19,7 +25,24 @@ env:
   GODOT_TEMPLATES_SHA512: 8f461c7d6e91a0fbabfc95b1e4ca70ff1732c6f2920956a16b086ec2a85b5f7e238baf4dbce60dcc5630fae3bcb9a1fa2ae2027b92cb495c02d082705715e441
 
 jobs:
+  # 只改文档/模板/标签目录的 PR 不构建；草稿 PR 不构建（ci/change_scope.py）
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      game: ${{ steps.scope.outputs.game }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 2   # PR 合并提交及其父提交，供 git diff 判断改动范围
+
+      - name: Detect change scope
+        id: scope
+        run: python3 ci/change_scope.py >> "$GITHUB_OUTPUT"
+
   export:
+    needs: changes
+    if: needs.changes.outputs.game == 'true' && !github.event.pull_request.draft
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -64,10 +87,15 @@ jobs:
           Copy-Item tmp_templates\templates\windows_release_x86_64.exe "$dst\" -Force
           Copy-Item tmp_templates\templates\windows_debug_x86_64.exe "$dst\" -Force
 
-      # Windows 上始终跑快速模式（不含 soak），完整 soak 由 tests-linux 在 push main / 定时运行
+      # PR 上快速测试已由 tests-linux 跑过，这里只做导入（导出前必需）+ 导出 + exe smoke；
+      # push main 与发布仍在 Windows 上跑快速模式（不含 soak），完整 soak 由 tests-linux 在 push main / 定时运行
       - name: Run tests (unified runner, quick)
         shell: pwsh
-        run: ./ci/run-tests.ps1 -Godot .\.tools\godot\godot_console.exe -Quick
+        env:
+          IMPORT_ONLY: ${{ github.event_name == 'pull_request' }}
+        run: |
+          if ($env:IMPORT_ONLY -eq 'true') { ./ci/run-tests.ps1 -Godot .\.tools\godot\godot_console.exe -Only import }
+          else { ./ci/run-tests.ps1 -Godot .\.tools\godot\godot_console.exe -Quick }
 
       - name: Export exe
         shell: pwsh

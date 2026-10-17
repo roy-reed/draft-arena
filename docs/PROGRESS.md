@@ -1,5 +1,11 @@
 # 进度日志 — 每次收工追加 ≤5 行，倒序排列
 
+## 2026-10-17（协作流程：GitHub 入口与测试分层）
+- 新增 Issue 表单（缺陷/试玩反馈/需求）、PR 模板与标签目录；PR 自动检查标题格式并打 size、risk:L2、needs-decision 标签。
+- 测试分层：只改文档的 PR 跳过 Godot；Windows PR 构建只做导入+导出+exe smoke；APK 仅导出配置或 mobile 改动时导出；草稿 PR 不构建安装包；main 与发布仍全量。
+- AGENTS.md 增加 GitHub 协作流程与 Code Review Rules（供 Codex 自动审查）；未改游戏代码、secrets 与仓库设置。
+- 待 Roy 决策：是否合并本流程；合并后 sync-labels 自动建标签，Codex 自动审查需在 Codex 设置里为本仓库开启。
+
 ## 2026-09-26（第三十次收工：M3-B 商店主视觉）
 - 复用冻结的 12 张正式候选美术，生成 4 张 Store Capsule 与 4 张 Library 素材；未新增角色、动画、图标或玩法资产。
 - 尺寸按当日 Steamworks 模板复核；Library Hero 为无字单场景，Library Logo 为透明底，基础胶囊只含游戏美术与游戏名。

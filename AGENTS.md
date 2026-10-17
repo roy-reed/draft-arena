@@ -34,6 +34,8 @@ $GODOT --path . -- --shot                      # UI/视觉改动必跑：真实�
 - **SMOKE_OK 未全绿不许交付**，没有例外。smoke 会自动跳过存档落盘（`MetaS.persist` 开关），不会污染测试者存档。
 - 超时判定：smoke 内置 180s，卡死会以 timeout 退出——运行卡死本身就是 bug。
 - 已知噪音：headless 退出时的 RID/ObjectDB 告警是引擎固有现象，不算错。
+- 只改文档/模板时（`*.md`、`docs/`、`store/`、Issue/PR 模板、标签目录）免跑 Godot，CI 只做文档引用检查。
+- 云端 worker 没有 Godot 时：开草稿 PR，以 CI `tests-linux` 全绿作为 import/smoke/sim 证据；`--shot` 仍需本地真窗口，PR 里注明「待本地截图」。
 
 ## 编码约定
 
@@ -47,8 +49,22 @@ $GODOT --path . -- --shot                      # UI/视觉改动必跑：真实�
 
 1. clone → 引导脚本 → `--import` + `--smoke`（先验基线全绿再动手）。
 2. 按 GDD 章节/PROGRESS.md「下次目标」领任务；一次改动一个目标。
-3. 交付 = 四件套全绿 + GDD 同步更新 + docs/PROGRESS.md 追加一行 + commit（信息写改动要点与验证结果）。
-4. 不确定的设计决策不要拍板：在 docs/PROGRESS.md 记「待 Roy 决策」并停下。
+3. 交付 = 四件套全绿 + GDD 同步更新 + docs/PROGRESS.md 追加一行 + commit（信息写改动要点与验证结果）+ 按模板开 PR。
+4. 不确定的设计决策不要拍板：在 PR「## 待 Roy 决策」写成勾选项（`- [ ] 同意：<建议方案>`），同时在 docs/PROGRESS.md 记「待 Roy 决策」，然后停下。
+
+## GitHub 协作流程
+
+- 分支 `<类型>/<简述>`（移动端用 `mobile/`）；PR 标题按 Conventional Commits（即 squash 后的提交标题），描述按 `.github/pull_request_template.md`。
+- 自动标签（`ci/pr_hygiene.py`）：`size:S/M/L/XL`；改 CI、协作规则或发布配置加 `risk:L2`；「待 Roy 决策」有未勾选项加 `needs-decision`，全部勾选后自动移除。
+- 测试分层：PR 上 tests-linux 跑快速模式，只改文档时跳过 Godot；Windows 只做导入 + 导出 + exe smoke；APK 仅在导出配置或 mobile 改动时导出；草稿 PR 不构建安装包；push main 全量，每日定时 soak。
+- Roy 只做两件事：需要时试玩，决定合并。`risk:L2` 或 `needs-decision` 未处理不合并。
+- 未经 Roy 明确同意不得：push main、force push、删分支、打 tag 或发布、改 secrets 或仓库设置、新增依赖。并行工作区只放 `.worktree/<名字>`（已在 .gitignore）。
+
+## Code Review Rules
+
+- 伤害与击杀：新增或修改伤害来源必须经过 `take_damage` 与 `_dead` 死亡守卫，高速弹体须子步进；可能重复结算击杀、经验或金币的路径按 P1 报告。
+- 数值同步：改 `main.gd` 顶部常量或刷怪/经济逻辑时，`--sim` 须共用同一常量或函数，`docs/GDD.md` 对应数值须同步；不同步按 P1 报告。
+- 存档与测试隔离：存档结构变化须兼容旧存档；smoke、sim 与测试脚本不得写入玩家存档（`MetaS.persist`）；违反按 P1 报告。
 
 ## 构建（可选，需先装导出模板）
 
