@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="CardDef" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/card_def.gd" id="card"]
+[ext_resource type="Script" path="res://scripts/core/stat_modifier.gd" id="mod"]
+
+[sub_resource type="Resource" id="m0"]
+script = ExtResource("mod")
+stat = &"upgrade_weapon"
+op = 3
+value = 0.0
+
+[resource]
+script = ExtResource("card")
+id = &"u_shotgun_3"
+kind = "weapon"
+display_name = "散弹·独头弹"
+desc = "单发伤害 +80%。"
+m0 = true
+owner_char = &"gunner"
+weapon = &"w_shotgun"
+tier = 3
+tags = PackedStringArray("bullet")
+modifiers = Array[ExtResource("mod")]([SubResource("m0")])

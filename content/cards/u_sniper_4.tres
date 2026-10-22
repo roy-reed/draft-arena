@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="CardDef" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/card_def.gd" id="card"]
+[ext_resource type="Script" path="res://scripts/core/stat_modifier.gd" id="mod"]
+
+[sub_resource type="Resource" id="m0"]
+script = ExtResource("mod")
+stat = &"upgrade_weapon"
+op = 3
+value = 0.0
+
+[resource]
+script = ExtResource("card")
+id = &"u_sniper_4"
+kind = "weapon"
+display_name = "进化：狙击·湮灭射线"
+desc = "伤害 +50%，穿透 +3，对精英 +20%。"
+m0 = true
+owner_char = &"ranger"
+weapon = &"w_sniper"
+tier = 4
+tags = PackedStringArray("bullet")
+modifiers = Array[ExtResource("mod")]([SubResource("m0")])

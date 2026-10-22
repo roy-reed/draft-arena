@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="CardDef" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/card_def.gd" id="card"]
+[ext_resource type="Script" path="res://scripts/core/stat_modifier.gd" id="mod"]
+
+[sub_resource type="Resource" id="m0"]
+script = ExtResource("mod")
+stat = &"bounce"
+op = 0
+value = 1.0
+
+[resource]
+script = ExtResource("card")
+id = &"p_lens"
+kind = "passive"
+display_name = "弹射透镜"
+desc = "子弹命中后向最近敌人弹射 1 次。"
+m0 = false
+req = PackedStringArray("bullet")
+tags = PackedStringArray("bullet")
+modifiers = Array[ExtResource("mod")]([SubResource("m0")])

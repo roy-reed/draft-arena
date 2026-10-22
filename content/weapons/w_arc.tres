@@ -1,0 +1,53 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/weapon_def.gd" id="wdef"]
+[ext_resource type="Script" path="res://scripts/core/weapon_level.gd" id="wlv"]
+[ext_resource type="Script" path="res://scripts/core/stat_modifier.gd" id="mod"]
+
+[sub_resource type="Resource" id="m0"]
+script = ExtResource("mod")
+stat = &"arc_targets"
+op = 0
+value = 1.0
+
+[sub_resource type="Resource" id="lv2"]
+script = ExtResource("wlv")
+level = 2
+modifiers = Array[ExtResource("mod")]([SubResource("m0")])
+
+[sub_resource type="Resource" id="m1"]
+script = ExtResource("mod")
+stat = &"arc_dmg_mult"
+op = 0
+value = 0.5
+
+[sub_resource type="Resource" id="lv3"]
+script = ExtResource("wlv")
+level = 3
+modifiers = Array[ExtResource("mod")]([SubResource("m1")])
+
+[sub_resource type="Resource" id="m2"]
+script = ExtResource("mod")
+stat = &"arc_targets"
+op = 0
+value = 2.0
+
+[sub_resource type="Resource" id="m3"]
+script = ExtResource("mod")
+stat = &"arc_dmg_mult"
+op = 0
+value = 0.5
+
+[sub_resource type="Resource" id="lv4"]
+script = ExtResource("wlv")
+level = 4
+modifiers = Array[ExtResource("mod")]([SubResource("m2"), SubResource("m3")])
+
+[resource]
+script = ExtResource("wdef")
+id = &"w_arc"
+display_name = "电弧"
+interval_mult = 1.4
+mech_tag = &"arc"
+owner_char = &"gunner"
+levels = Array[ExtResource("wlv")]([SubResource("lv2"), SubResource("lv3"), SubResource("lv4")])
