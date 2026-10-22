@@ -62,6 +62,9 @@ var radius := 16.0
 var shape := "circle"
 var body_color := Color(0.35, 0.75, 1.0)
 
+const DOUBLE_DELAY := 0.12
+const SHOTGUN_HALF_ANGLE := 0.18
+var _extra_shots: Array = []
 var _cd := 0.6
 var _sawblade: Node2D = null
 var _vis: Node2D = null
@@ -183,6 +186,7 @@ func has_outline() -> bool:
 
 
 func set_weapon(id: String) -> void:
+	_extra_shots.clear()
 	weapon_id = id
 	weapon_level = 1
 	if id == "w_sawblade":
@@ -280,6 +284,7 @@ func add_max_hp(v: float) -> void:
 func _physics_process(delta: float) -> void:
 	if not active or dead:
 		return
+	_tick_extra_shot(delta)
 	var dir := TouchControls.movement_dir()
 	var move_mult := 1.25 if swift_t > 0.0 else 1.0
 	position += dir * speed * move_mult * delta
@@ -357,10 +362,8 @@ func _shoot() -> void:
 				if is_instance_valid(t):
 					t.take_damage(current_damage(12.0 * arc_dmg_mult, t), self)
 			SFX.play("hit")
-			if randf() < double_chance:  # fx: 电弧表现接入点
-				for t in targets:
-					if is_instance_valid(t):
-						t.take_damage(current_damage(12.0 * arc_dmg_mult, t), self)
+			if randf() < double_chance:
+				_queue_extra_shot(Vector2.ZERO, 12.0 * arc_dmg_mult, 0)
 			return
 	var target := _nearest_enemy()
 	if target == null:
@@ -373,21 +376,69 @@ func _shoot() -> void:
 			_fire(target, 18.0 * dragon_dmg_mult, 2 + bullet_pierce_bonus)
 		"w_shotgun":
 			for i in pellet_count:
-				_fire_dir(base_dir.rotated((i - (pellet_count - 1) / 2.0) * 0.22), 6.0 * pellet_dmg_mult, 0, target)
+				_fire_dir(base_dir.rotated(pellet_angle(i)), 6.0 * pellet_dmg_mult, 0, target)
 		"w_sniper":
 			_fire(target, 26.0 * sniper_dmg_mult, sniper_pierce)
 		"w_boomerang":
 			for i in boom_count:
 				_fire_dir(base_dir.rotated((i - (boom_count - 1) / 2.0) * 0.35), 9.0 * boom_dmg_mult, 0, target)
 	if randf() < double_chance:
-		if weapon_id == "w_shotgun":
-			_fire_dir(base_dir, 6.0 * pellet_dmg_mult, 0, target)
-		elif weapon_id == "w_boomerang":
-			_fire_dir(base_dir.rotated(0.35), 9.0 * boom_dmg_mult, 0, target)
-		elif weapon_id == "w_dragon":
-			_fire(target, 18.0 * dragon_dmg_mult, 4 + bullet_pierce_bonus)
+		match weapon_id:
+			"w_shotgun": _queue_extra_shot(base_dir, 6.0 * pellet_dmg_mult, 0)
+			"w_boomerang": _queue_extra_shot(base_dir, 9.0 * boom_dmg_mult, 0)
+			"w_dragon": _queue_extra_shot(base_dir, 18.0 * dragon_dmg_mult, 4 + bullet_pierce_bonus)
+			"w_sniper": _queue_extra_shot(base_dir, 26.0 * sniper_dmg_mult, sniper_pierce)
+
+func pellet_angle(index: int) -> float:
+	# 固定总扇角；偶数弹丸保留正中一发，其余分配在两侧。
+	var slots := pellet_count if pellet_count % 2 == 1 else pellet_count + 1
+	var slot := index if index <= slots / 2 else index + (slots - pellet_count)
+	return (float(slot) / maxf(slots - 1, 1) * 2.0 - 1.0) * SHOTGUN_HALF_ANGLE
+
+func _queue_extra_shot(dir: Vector2, base_dmg: float, pierce: int) -> void:
+	_extra_shots.append({"dir": dir, "damage": base_dmg, "pierce": pierce, "remaining": DOUBLE_DELAY})
+
+func _tick_extra_shot(delta: float) -> void:
+	if not active or dead or drafting:
+		return
+	# 高攻速下也保留每次追加，不让下一次攻击覆盖等待中的弹丸。
+	for shot: Dictionary in _extra_shots.duplicate():
+		shot["remaining"] = float(shot["remaining"]) - delta
+		if float(shot["remaining"]) > 0.0:
+			continue
+		_extra_shots.erase(shot)
+		if weapon_id == "w_arc":
+			for target in _nearest_enemies(arc_targets, 340.0):
+				target.take_damage(current_damage(float(shot["damage"]), target), self)
 		else:
-			_fire(target, 26.0 * sniper_dmg_mult, sniper_pierce)
+			_fire_dir(shot["dir"], float(shot["damage"]), int(shot["pierce"]), _nearest_enemy())
+
+func combat_summary() -> String:
+	var rate := attack_speed_mult * (1.3 if berserk and hp < max_hp * 0.3 else 1.0)
+	var base_dmg := 18.0 * dragon_dmg_mult
+	match weapon_id:
+		"w_shotgun": base_dmg = 6.0 * pellet_dmg_mult
+		"w_sniper": base_dmg = 26.0 * sniper_dmg_mult
+		"w_boomerang": base_dmg = 9.0 * boom_dmg_mult
+		"w_arc": base_dmg = 12.0 * arc_dmg_mult
+		"w_sawblade": base_dmg = 10.0 * saw_dmg_mult
+	var dmg := base_dmg * damage_mult
+	if revenge:
+		dmg *= 1.0 + 0.04 * floorf((max_hp - hp) / max_hp * 10.0)
+	if grit and hp < max_hp * 0.5:
+		dmg *= 1.2
+	var hits := rate / (base_interval * float(CardsS.WEAPONS[weapon_id]["interval_mult"]))
+	var cadence := "攻击 %.2f 次/秒" % hits
+	if weapon_id == "w_sawblade":
+		cadence = "接触结算 %.2f 次/秒（共享冷却）" % (attack_speed_mult * saw_count / 0.3)
+	var buffs := []
+	var seen := {}
+	for id in owned_passives:
+		seen[id] = int(seen.get(id, 0)) + 1
+	for id in seen:
+		buffs.append("%s×%d" % [CardsS.get_card(id).get("name", id), seen[id]])
+	var unit := "每弹" if weapon_id == "w_shotgun" else "每次命中"
+	return "%s Lv%d · %s\n%s伤害 %.1f（未计护甲/暴击）· 对精英 +%.0f%%\n移速 %.0f · 护甲 %.0f · 击杀回血 %.0f · 再生 %.1f/秒\n暴击 %.0f%% · 追加 %.0f%% · 首领奖励 +%d/槽位\n增益：%s" % [CardsS.WEAPONS[weapon_id]["name"], weapon_level, cadence, unit, dmg, giant_slayer * 100.0, speed * (1.25 if swift_t > 0.0 else 1.0), armor, lifesteal, regen, minf(crit_chance, 1.0) * 100.0, minf(double_chance, 1.0) * 100.0, magnet * 3, "、".join(buffs) if not buffs.is_empty() else "无"]
 
 func _fire(target: Node2D, base_dmg: float, pierce: int) -> void:
 	_fire_dir((target.position - position).normalized(), base_dmg, pierce, target)
