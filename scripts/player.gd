@@ -69,12 +69,10 @@ var _cd := 0.6
 var _sawblade: Node2D = null
 var _vis: Node2D = null
 var _anim_t := 0.0
-# 着重显示（大小不变）：外发光 + 亮轮廓 + 少量环绕光点，桌面/Android 相同
+# 着重显示（大小不变）：高对比填色 + 外发光 + 提示性环绕光点（无轮廓框），桌面/Android 相同
 var _glow: Polygon2D = null
-var _outline: Line2D = null
 var _sparks: Node2D = null
 const HIGHLIGHT_SPARK_COUNT := 4
-const HIGHLIGHT_OUTLINE := Color(1.0, 1.0, 0.92, 0.95)
 
 const CardsS := preload("res://scripts/cards.gd")
 const SawbladeS := preload("res://scripts/sawblade.gd")
@@ -96,7 +94,7 @@ func _ready() -> void:
 	z_index = 5
 	var poly := Polygon2D.new()
 	poly.polygon = _shape_points()
-	poly.color = body_color
+	poly.color = highlight_body_color(body_color)
 	add_child(poly)
 	_vis = poly
 	var tex := ArtS.skin("player_" + char_id)
@@ -104,11 +102,12 @@ func _ready() -> void:
 		poly.visible = false
 		var spr := Sprite2D.new()
 		spr.texture = tex
+		spr.modulate = highlight_body_color(Color.WHITE)  # 皮肤也提亮，保持对比
 		var s := radius * 2.0 / float(tex.get_width())
 		spr.scale = Vector2(s, s)
 		add_child(spr)
 		_vis = spr
-	_add_highlight()  # 轮廓/光点叠在身体之上；发光垫在身体之下
+	_add_highlight()  # 发光垫底；光点叠上；无轮廓框
 
 func _shape_points() -> PackedVector2Array:
 	var n := 16
@@ -134,31 +133,28 @@ func _ring_points(extra: float) -> PackedVector2Array:
 	return out
 
 
+static func highlight_body_color(base: Color) -> Color:
+	# 高对比提亮，不改尺寸；敌人保持原色，玩家更醒目
+	var c := base.lightened(0.35)
+	c.a = 1.0
+	return c
+
+
 func _add_highlight() -> void:
-	# 外发光（略大于身体，不改碰撞半径 / 身体缩放）；垫到最底层
+	# 外发光（略大于身体，不改碰撞半径 / 身体缩放）；垫到最底层；无轮廓框
 	_glow = Polygon2D.new()
-	_glow.polygon = _ring_points(radius * 0.45)
-	var gc := body_color.lightened(0.45)
-	gc.a = 0.32
+	_glow.polygon = _ring_points(radius * 0.55)
+	var gc := highlight_body_color(body_color)
+	gc.a = 0.38
 	_glow.color = gc
 	add_child(_glow)
 	move_child(_glow, 0)
-	# 明亮轮廓贴合体型外沿（加在身体之后，画在上面）
-	_outline = Line2D.new()
-	_outline.width = 3.0
-	_outline.default_color = HIGHLIGHT_OUTLINE
-	_outline.closed = true
-	_outline.joint_mode = Line2D.LINE_JOINT_ROUND
-	_outline.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	_outline.end_cap_mode = Line2D.LINE_CAP_ROUND
-	_outline.points = _ring_points(2.0)
-	add_child(_outline)
-	# 少量环绕光点
+	# 适量提示性环绕光点
 	_sparks = Node2D.new()
 	add_child(_sparks)
 	for i in HIGHLIGHT_SPARK_COUNT:
 		var sp := Polygon2D.new()
-		sp.color = Color(1.0, 1.0, 0.85, 0.9)
+		sp.color = Color(1.0, 0.95, 0.55, 0.95)
 		sp.polygon = PackedVector2Array([
 			Vector2(0, -3), Vector2(2.2, 0), Vector2(0, 3), Vector2(-2.2, 0)
 		])
@@ -182,7 +178,11 @@ func highlight_spark_count() -> int:
 
 
 func has_highlight() -> bool:
-	return _outline != null and is_instance_valid(_outline) and _glow != null and is_instance_valid(_glow)
+	return _glow != null and is_instance_valid(_glow) and highlight_spark_count() > 0
+
+
+func has_outline() -> bool:
+	return false  # 明确无强调框/轮廓
 
 
 func set_weapon(id: String) -> void:
@@ -297,8 +297,6 @@ func _physics_process(delta: float) -> void:
 		_vis.position.y = bob
 	if _glow != null:
 		_glow.position.y = bob
-	if _outline != null:
-		_outline.position.y = bob
 	if _sparks != null:
 		_sparks.position.y = bob
 		_update_sparks(_anim_t)

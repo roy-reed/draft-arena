@@ -1,5 +1,5 @@
 extends SceneTree
-# 手游版 M1：虚拟摇杆直接写移动向量、触屏显示条件、选牌点按聚焦、返回键映射；并确认非触屏（桌面）行为不变。
+# 手游版 M1：虚拟摇杆全屏自由呼出并直接写移动向量、触屏显示条件、选牌点按聚焦、返回键映射；并确认非触屏（桌面）行为不变。
 # 期望值均为独立写出的数值/表格，不调用被测函数计算期望。
 
 const TouchControlsS := preload("res://scripts/touch_controls.gd")
@@ -142,13 +142,29 @@ func _test_touch_layer() -> void:
 	_expect(not desktop.is_stick_active(), "lift ends stick")
 	_expect(not TouchControlsS.move_active, "lift clears direct move")
 	_expect_vec(TouchControlsS.movement_dir(), Vector2.ZERO, "lift stops movement")
-	# 右半屏触摸不启动摇杆
+	# 全屏任意位置可呼出（右半屏也应启动）
 	var right := InputEventScreenTouch.new()
 	right.index = 1
 	right.pressed = true
 	right.position = Vector2(1000, 400)
 	desktop._input(right)
-	_expect(not desktop.is_stick_active(), "right half does not grab stick")
+	_expect(desktop.is_stick_active(), "right half also grabs stick (fullscreen)")
+	_expect_vec(desktop.stick_origin(), Vector2(1000, 400), "stick center is right-half press")
+	var lift_r := InputEventScreenTouch.new()
+	lift_r.index = 1
+	lift_r.pressed = false
+	lift_r.position = Vector2(1000, 400)
+	desktop._input(lift_r)
+	_expect(not desktop.is_stick_active(), "right-half release hides stick")
+	# 暂停按钮区域不抢摇杆
+	await process_frame
+	var pause_rect: Rect2 = desktop.pause_button.get_global_rect()
+	var on_pause := InputEventScreenTouch.new()
+	on_pause.index = 2
+	on_pause.pressed = true
+	on_pause.position = pause_rect.get_center()
+	desktop._input(on_pause)
+	_expect(not desktop.is_stick_active(), "press on pause button does not grab stick")
 	# 非对局状态（主菜单）不显示暂停按钮、也不启动摇杆
 	fake.state = "menu"
 	await process_frame
