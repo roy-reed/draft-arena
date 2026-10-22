@@ -1,0 +1,23 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/card_def.gd" id="card"]
+[ext_resource type="Script" path="res://scripts/core/stat_modifier.gd" id="mod"]
+
+[sub_resource type="Resource" id="m0"]
+script = ExtResource("mod")
+stat = &"upgrade_weapon"
+op = 3
+value = 0.0
+
+[resource]
+script = ExtResource("card")
+id = &"u_shotgun_2"
+kind = "weapon"
+display_name = "散弹·扩容"
+desc = "每次喷出 5 发（原 3 发）。"
+m0 = true
+owner_char = &"gunner"
+weapon = &"w_shotgun"
+tier = 2
+tags = PackedStringArray("bullet")
+modifiers = Array[Resource]([SubResource("m0")])

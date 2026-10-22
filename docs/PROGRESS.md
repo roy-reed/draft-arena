@@ -1,5 +1,11 @@
 # 进度日志 — 每次收工追加 ≤5 行，倒序排列
 
+## 2026-10-22（arch-v2 重构：M0 + M1）
+- 分支 arch-v2（草稿 PR #24，不合并）。M0：docs/design/ARCH_V2.md 设计冻结；修复 #21 合并丢失的「Tab 属性」提示（main 上 screen-layout-test 红）。
+- M1：scripts/core/（StatModifier、CardDef、WeaponDef、WeaponLevel、ContentLibrary、EventBus 自动加载）；39 张牌与 6 武器 18 个等级迁移为 content/*.tres，cards.gd 变为读数据的适配层，player.upgrade_weapon 改查表。
+- 验证：content-data-test 以迁移前快照逐值比对 39 张牌效果 + 内容 lint + 纯数据新武器；本地全量 16 项（含 soak）通过、修复后冷启动 Quick 15 项通过，CI 三项全绿。
+- 坑：Godot 4.4.1 冷启动 --import 时，按 preload 脚本类型化的导出数组（Array[XxxS]）触发「resources still in use」→ 统一用 Array[Resource]。
+
 ## 2026-10-15（Windows 试玩反馈修复）
 - 修复主动退出/无尽金币未入档与重复结算风险；暂停四项操作，局内重开保留角色从第一波开始。
 - 收窄散弹固定扇角至约 20.6°并保留正中弹；二连发延迟 0.12s、选牌冻结且高攻速不覆盖队列；首领四阶段边界与击退上限回归。
