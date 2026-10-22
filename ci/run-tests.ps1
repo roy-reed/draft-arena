@@ -42,6 +42,7 @@ $checks = @(
     [pscustomobject]@{ Name = 'player-highlight-test'; Args = $base + @('--script', 'res://scripts/tests/player_highlight_test.gd'); Marker = 'PLAYER_HIGHLIGHT_OK' }
     [pscustomobject]@{ Name = 'screen-layout-test'; Args = $base + @('--script', 'res://scripts/tests/screen_layout_test.gd'); Marker = 'SCREEN_LAYOUT_OK' }
     [pscustomobject]@{ Name = 'collision-grid-test'; Args = $base + @('--script', 'res://scripts/tests/collision_grid_test.gd'); Marker = 'COLLISION_GRID_OK' }
+    [pscustomobject]@{ Name = 'playtest-feedback-test'; Args = $base + @('--script', 'res://scripts/tests/playtest_feedback_test.gd'); Marker = 'PLAYTEST_FEEDBACK_OK' }
     [pscustomobject]@{ Name = 'sim';              Args = $base + @('--', '--sim');                                          Marker = 'SIM_OK' }
     [pscustomobject]@{ Name = 'soak';             Args = $base + @('--', '--soak', '--grid-verify');                                         Marker = 'SOAK_OK' }
 )

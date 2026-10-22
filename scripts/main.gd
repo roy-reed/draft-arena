@@ -68,6 +68,8 @@ var region_i := 0
 var wave_i := 0
 var is_boss_wave := false
 var run_coins := 0
+var _banked_run_coins := 0
+static var _retry_char := -1
 var kills := 0
 var player: Node2D = null
 var ui: CanvasLayer = null
@@ -130,6 +132,7 @@ func _ready() -> void:
 	if "--boss-test" in user_args:
 		get_tree().quit(BossTestRunnerS.run())
 		return
+	get_tree().auto_accept_quit = false
 	_add_floor()
 	smoke = "--smoke" in user_args or "--soak" in user_args
 	soak = "--soak" in user_args
@@ -187,6 +190,12 @@ func _ready() -> void:
 		if not (_smoke_buys["card"] and _smoke_buys["level"] and _smoke_buys["pick"]):
 			_smoke_finish("buy_fail")
 			return
+		_menu_start()
+
+	elif _retry_char >= 0:
+		var retry := _retry_char
+		_retry_char = -1
+		_menu_select(retry)
 		_menu_start()
 
 func _spawn_xp_crystal(pos: Vector2) -> void:
@@ -282,6 +291,7 @@ func _process(delta: float) -> void:
 			return
 	if player != null:
 		ui.update_hp(player.hp, player.max_hp)
+		ui.update_stats(player.combat_summary())
 	if _boss_encounter == null and boss_ref != null and is_instance_valid(boss_ref):
 		ui.set_boss(boss_ref.hp, boss_ref.max_hp)
 	match state:
@@ -483,6 +493,7 @@ func _start_run() -> void:
 		stale_encounter.abort("run_restarted")
 		stale_encounter.queue_free()
 	run_coins = 0
+	_banked_run_coins = 0
 	kills = 0
 	region_i = 0
 	wave_i = 0
@@ -566,17 +577,19 @@ func hotkey(event: InputEvent) -> void:
 				elif state in ["inter", "wave", "draft", "startpick"]:
 					_set_paused(true)
 				else:
-					get_tree().quit()
+					_cb_quit()
 			KEY_SPACE:
 				if paused:
 					_set_paused(false)
 			KEY_R:
 				if paused or state in ["over", "win"]:
-					_set_paused(false)
-					get_tree().reload_current_scene()
+					_cb_restart()
+			KEY_TAB:
+				if player != null:
+					ui.toggle_stats()
 			KEY_Q:
 				if paused:
-					get_tree().quit()
+					_cb_quit()
 			KEY_F11:
 				var mode := DisplayServer.window_get_mode()
 				DisplayServer.window_set_mode(
@@ -634,10 +647,12 @@ func handle_back() -> void:
 		"resume": _set_paused(false)
 		"pause": _set_paused(true)
 		"restart": _cb_restart()
-		"quit": get_tree().quit()
+		"quit": _cb_quit()
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_cb_quit()
+	elif what == NOTIFICATION_WM_GO_BACK_REQUEST:
 		handle_back()
 	elif what == NOTIFICATION_APPLICATION_PAUSED:
 		if not smoke and ui != null:
@@ -647,22 +662,46 @@ func _set_paused(v: bool) -> void:
 	paused = v
 	get_tree().paused = v
 	if v:
+		if player != null:
+			ui.update_stats(player.combat_summary())
 		ui.show_pause(_pause_cbs())
 	else:
 		ui.hide_pause()
 
 func _pause_cbs() -> Dictionary:
-	return {"resume": _cb_resume, "restart": _cb_restart, "quit": _cb_quit, "volume": _cb_volume}
+	return {"resume": _cb_resume, "restart": _cb_restart, "menu": _cb_menu, "quit": _cb_quit, "volume": _cb_volume}
 
 func _cb_resume() -> void:
 	_set_paused(false)
 
 func _cb_restart() -> void:
+	if state in PAUSABLE_STATES:
+		_retry_char = char_i
+	_bank_run_coins()
+	_set_paused(false)
+	get_tree().reload_current_scene()
+
+func _cb_menu() -> void:
+	_retry_char = -1
+	_bank_run_coins()
 	_set_paused(false)
 	get_tree().reload_current_scene()
 
 func _cb_quit() -> void:
+	_bank_run_coins()
 	get_tree().quit()
+
+func _bank_run_coins() -> int:
+	# 只保存已赚金币，不把主动退出当死亡发保底；重复调用不会重复入账。
+	if smoke:
+		return 0
+	var data := MetaS.load_data()
+	var pending := maxi(run_coins - _banked_run_coins, 0)
+	data["coins"] = int(data["coins"]) + pending
+	if pending > 0:
+		MetaS.save_data(data)
+		_banked_run_coins = run_coins
+	return int(data["coins"])
 
 func _cb_volume(v: float) -> void:
 	SFX.set_volume(v)
@@ -991,7 +1030,7 @@ func _on_twin_member_revived() -> void:
 
 func _on_boss_encounter_completed(defeated_count: int, reward_coin: int, reward_xp: int) -> void:
 	kills += defeated_count
-	run_coins += reward_coin
+	run_coins += reward_coin + defeated_count * player.magnet * 3
 	ui.update_coins(run_coins)
 	add_xp(reward_xp, false)
 	boss_ref = null
@@ -1114,7 +1153,7 @@ func add_xp(n: int, enter_draft_immediately := true) -> void:
 
 func _wave_time_up() -> void:
 	# 普通波固定时长到点：清波奖励照发，残怪保留，直接进入下一波（升级选卡由经验驱动）
-	run_coins += 2 + player.magnet
+	run_coins += 2
 	ui.update_coins(run_coins)
 	_start_inter(0.5)
 
@@ -1262,9 +1301,8 @@ func _finish(result: String) -> void:
 		run_coins += pity
 	var total_after := 0
 	if not smoke:  # smoke/soak 不污染真实存档（金币与教学标记都在此分支内）
+		total_after = _bank_run_coins()
 		var d := MetaS.load_data()
-		total_after = int(d.get("coins", 0)) + run_coins
-		d["coins"] = total_after
 		if not d.get("tutorial_done", false):
 			d["tutorial_done"] = true
 		MetaS.save_data(d)

@@ -78,7 +78,7 @@ func _test_desktop_identical() -> void:
 	_eq(ui.banner_label.size, Vector2(1280, 102), "banner size (legacy measured)")
 	_eq(ui.hint_label.global_position, Vector2(0, 178), "hint label")
 	_eq(ui.hint_label.size, Vector2(1280, 54), "hint label size (legacy measured)")
-	_txt(ui.hud_hint.text, "WASD / 方向键移动 · 攻击全自动 · ESC 暂停 · F11 全屏", "desktop controls hint unchanged")
+	_txt(ui.hud_hint.text, "WASD / 方向键移动 · 攻击全自动 · ESC 暂停 · Tab 属性 · F11 全屏", "desktop controls hint unchanged")
 	_txt(ui.menu_hint.text, "选择角色（按 1 / 2 / 3 或点击），Space 或按钮开始", "desktop menu hint unchanged")
 	_txt(ui.start_btn.text, "开始（Space）", "desktop start button unchanged")
 	_txt(ui.pause_buttons["resume"].text, "继续（ESC / Space）", "desktop resume unchanged")
@@ -131,10 +131,10 @@ func _test_mobile_fonts_and_texts() -> void:
 	_txt(ui.hud_hint.text, "左半屏拖动移动 · 攻击全自动 · 右上角 II 暂停", "mobile starts with touch hint")
 	_txt(ui.start_btn.text, "开始", "mobile start button has no key hint")
 	ui.set_text_touch(false)  # 接了手柄/键盘
-	_txt(ui.hud_hint.text, "WASD / 方向键移动 · 攻击全自动 · ESC 暂停 · F11 全屏", "switches to keyboard hint")
-	_txt(ui.pause_buttons["quit"].text, "退出游戏（Q）", "pause quit shows key")
+	_txt(ui.hud_hint.text, "WASD / 方向键移动 · 攻击全自动 · ESC 暂停 · Tab 属性 · F11 全屏", "switches to keyboard hint")
+	_txt(ui.pause_buttons["quit"].text, "退出到桌面（Q，保存金币）", "pause quit shows key")
 	ui.set_text_touch(true)
-	_txt(ui.pause_buttons["quit"].text, "退出游戏", "back to touch text")
+	_txt(ui.pause_buttons["quit"].text, "退出到桌面（保存金币）", "back to touch text")
 	_txt(ui.text("press_restart"), "点“重开”按钮再来一局", "touch restart hint")
 	vp.queue_free()
 	# TouchControls 根据输入种类发信号
