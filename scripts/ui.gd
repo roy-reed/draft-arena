@@ -47,15 +47,20 @@ var hud_hint: Label
 var menu_hint: Label
 var start_btn: Button
 var pause_buttons := {}
+var _stats_requested := false
+var stats_label: Label
+var draft_stats: Label
+var pause_stats: Label
 # 每条提示的 [键鼠版, 触屏版]；键鼠版与原文完全一致
 const TEXTS := {
-	"hud_hint": ["WASD / 方向键移动 · 攻击全自动 · ESC 暂停 · F11 全屏", "左半屏拖动移动 · 攻击全自动 · 右上角 II 暂停"],
+	"hud_hint": ["WASD / 方向键移动 · 攻击全自动 · ESC 暂停 · F11 全屏", "任意位置按下呼出摇杆移动 · 攻击全自动 · 右上角 II 暂停"],
 	"menu_hint": ["选择角色（按 1 / 2 / 3 或点击），Space 或按钮开始", "点选角色，再点“开始”"],
 	"start": ["开始（Space）", "开始"],
 	"resume": ["继续（ESC / Space）", "继续"],
 	"restart": ["重开本局（R）", "重开本局"],
-	"quit": ["退出游戏（Q）", "退出游戏"],
-	"tutorial": ["移动：WASD / 方向键 · 攻击全自动 · ESC 暂停", "移动：左半屏拖动摇杆 · 攻击全自动 · 右上角 II 暂停"],
+	"tutorial": ["移动：WASD / 方向键 · 攻击全自动 · ESC 暂停", "移动：任意位置按下呼出摇杆 · 攻击全自动 · 右上角 II 暂停"],
+	"menu": ["回到主菜单（保存金币）", "回到主菜单（保存金币）"],
+	"quit": ["退出到桌面（Q，保存金币）", "退出到桌面（保存金币）"],
 	"press_restart": ["按 R 重开", "点“重开”按钮再来一局"],
 	"press_retry": ["按 R 重试", "点“重开”按钮重试"],
 }
@@ -159,9 +164,15 @@ func _build_hud() -> void:
 	wave_label = _label("", 20)
 	hud_root.add_child(wave_label)
 	_anchor(wave_label, 0, 0, Vector2(24, 96 * k).round())
-	coin_label = _label("金币 0", 20)
+	coin_label = _label("◉ 金币 0", 20)
 	hud_root.add_child(coin_label)
 	_anchor(coin_label, 0, 0, Vector2(24, 124 * k).round())
+	stats_label = _label("", 14)
+	stats_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stats_label.custom_minimum_size.x = 390 * k
+	stats_label.visible = false
+	hud_root.add_child(stats_label)
+	_anchor(stats_label, 0, 0, Vector2(24, 160 * k).round())
 	boss_bar = ColorRect.new()
 	boss_bar.color = Color(0, 0, 0, 0.55)
 	boss_bar.size = Vector2(600, 20)
@@ -260,6 +271,10 @@ func _build_pause() -> void:
 	var title := _label("已暂停", 30)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(title)
+	pause_stats = _label("", 15)
+	pause_stats.custom_minimum_size.x = 650 * font_scale
+	pause_stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vb.add_child(pause_stats)
 	var vol_row := HBoxContainer.new()
 	vol_row.add_theme_constant_override("separation", 8)
 	vol_row.add_child(_label("音量", 15))
@@ -272,7 +287,7 @@ func _build_pause() -> void:
 	vol_row.add_child(slider)
 	vb.add_child(vol_row)
 	pause_root.set_meta("slider", slider)
-	for item in [[text("resume"), "resume"], [text("restart"), "restart"], [text("quit"), "quit"]]:
+	for item in [[text("resume"), "resume"], [text("restart"), "restart"], [text("menu"), "menu"], [text("quit"), "quit"]]:
 		var b := _menu_btn()
 		b.text = item[0]
 		pause_buttons[item[1]] = b
@@ -289,9 +304,11 @@ func show_pause(cbs: Dictionary) -> void:
 	var s: HSlider = pause_root.get_meta("slider")
 	s.set_value_no_signal(SFX.get_volume())
 	pause_root.visible = true
+	_sync_stats_visibility()
 
 func hide_pause() -> void:
 	pause_root.visible = false
+	_sync_stats_visibility()
 	pause_cb = {}
 
 func _fire_pause(key: String) -> void:
@@ -311,12 +328,17 @@ func _build_draft() -> void:
 	draft_title = _label("选择一张牌", 26)
 	draft_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(draft_title)
+	draft_stats = _label("", 15)
+	draft_stats.custom_minimum_size.x = 722 * font_scale
+	draft_stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vb.add_child(draft_stats)
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 16)
 	draft_buttons = []
 	for i in 3:
 		var b := Button.new()
 		b.custom_minimum_size = _sz(Vector2(230, 130))
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.add_theme_font_size_override("font_size", _fs(16))
 		b.pivot_offset = b.custom_minimum_size / 2.0
 		# 悬停放大只用于鼠标；触屏上由“点按聚焦”代替（触摸模拟的鼠标事件不触发悬停）
@@ -396,6 +418,9 @@ func _build_menu() -> void:
 	menu_hint = _label(text("menu_hint"), 15)
 	menu_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(menu_hint)
+	var char_heading := _label("选择角色 / 专属武器", 20)
+	char_heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vb.add_child(char_heading)
 	var hb := HBoxContainer.new()
 	hb.alignment = BoxContainer.ALIGNMENT_CENTER
 	hb.add_theme_constant_override("separation", 12)
@@ -403,12 +428,17 @@ func _build_menu() -> void:
 	for i in 3:
 		var b := Button.new()
 		b.custom_minimum_size = _sz(Vector2(280, 130))
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.add_theme_font_size_override("font_size", _fs(15))
 		b.pressed.connect(_on_char_btn.bind(i))
 		hb.add_child(b)
 		menu_char_buttons.append(b)
 	vb.add_child(hb)
-	menu_coin_label = _label("金币 0（永久存档）", 20)
+	var shop_heading := _label("永久成长 / 卡牌解锁（花费存档金币）", 20)
+	shop_heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	shop_heading.modulate = Color(1.0, 0.85, 0.35)
+	vb.add_child(shop_heading)
+	menu_coin_label = _label("◉ 金币 0（永久存档）", 20)
 	menu_coin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(menu_coin_label)
 	shop_card_btn = _menu_btn()
@@ -466,7 +496,7 @@ func refresh_menu(char_texts: Array, card_text: String, level_text: String, pick
 	shop_card_btn.text = card_text
 	shop_level_btn.text = level_text
 	shop_pick_btn.text = pick_text
-	menu_coin_label.text = "金币 %d（永久存档）" % coins
+	menu_coin_label.text = "◉ 金币 %d（永久存档）" % coins
 
 # ---- HUD 与面板 ----
 
@@ -482,7 +512,19 @@ func update_wave(text: String) -> void:
 	wave_label.text = text
 
 func update_coins(n: int) -> void:
-	coin_label.text = "金币 %d" % n
+	coin_label.text = "◉ 金币 %d" % n
+
+func update_stats(summary: String) -> void:
+	stats_label.text = summary
+	draft_stats.text = "当前属性\n" + summary
+	pause_stats.text = "当前属性\n" + summary
+
+func toggle_stats() -> void:
+	_stats_requested = not _stats_requested
+	_sync_stats_visibility()
+
+func _sync_stats_visibility() -> void:
+	stats_label.visible = _stats_requested and not draft_center.visible and not pause_root.visible
 
 func show_boss() -> void:
 	boss_bar.visible = true
@@ -524,10 +566,12 @@ func show_draft(cards: Array, on_pick: Callable, title_text := "选择一张牌"
 		var c: Dictionary = cards[i]
 		draft_buttons[i].text = "%s\n\n%s" % [c["name"], c["desc"]]
 	draft_center.visible = true
+	_sync_stats_visibility()
 	FX.pop_in(draft_panel)
 
 func hide_draft() -> void:
 	draft_center.visible = false
+	_sync_stats_visibility()
 	draft_pick = Callable()
 	_set_draft_focus(-1)
 
@@ -540,6 +584,7 @@ func _on_draft_pressed(i: int) -> void:
 		return
 	_set_draft_focus(-1)
 	draft_center.visible = false
+	_sync_stats_visibility()
 	SFX.play("click")
 	var cb := draft_pick
 	draft_pick = Callable()

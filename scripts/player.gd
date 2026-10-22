@@ -62,16 +62,17 @@ var radius := 16.0
 var shape := "circle"
 var body_color := Color(0.35, 0.75, 1.0)
 
+const DOUBLE_DELAY := 0.12
+const SHOTGUN_HALF_ANGLE := 0.18
+var _extra_shots: Array = []
 var _cd := 0.6
 var _sawblade: Node2D = null
 var _vis: Node2D = null
 var _anim_t := 0.0
-# 着重显示（大小不变）：外发光 + 亮轮廓 + 少量环绕光点，桌面/Android 相同
+# 着重显示（大小不变）：高对比填色 + 外发光 + 提示性环绕光点（无轮廓框），桌面/Android 相同
 var _glow: Polygon2D = null
-var _outline: Line2D = null
 var _sparks: Node2D = null
 const HIGHLIGHT_SPARK_COUNT := 4
-const HIGHLIGHT_OUTLINE := Color(1.0, 1.0, 0.92, 0.95)
 
 const CardsS := preload("res://scripts/cards.gd")
 const SawbladeS := preload("res://scripts/sawblade.gd")
@@ -93,7 +94,7 @@ func _ready() -> void:
 	z_index = 5
 	var poly := Polygon2D.new()
 	poly.polygon = _shape_points()
-	poly.color = body_color
+	poly.color = highlight_body_color(body_color)
 	add_child(poly)
 	_vis = poly
 	var tex := ArtS.skin("player_" + char_id)
@@ -101,11 +102,12 @@ func _ready() -> void:
 		poly.visible = false
 		var spr := Sprite2D.new()
 		spr.texture = tex
+		spr.modulate = highlight_body_color(Color.WHITE)  # 皮肤也提亮，保持对比
 		var s := radius * 2.0 / float(tex.get_width())
 		spr.scale = Vector2(s, s)
 		add_child(spr)
 		_vis = spr
-	_add_highlight()  # 轮廓/光点叠在身体之上；发光垫在身体之下
+	_add_highlight()  # 发光垫底；光点叠上；无轮廓框
 
 func _shape_points() -> PackedVector2Array:
 	var n := 16
@@ -131,31 +133,28 @@ func _ring_points(extra: float) -> PackedVector2Array:
 	return out
 
 
+static func highlight_body_color(base: Color) -> Color:
+	# 高对比提亮，不改尺寸；敌人保持原色，玩家更醒目
+	var c := base.lightened(0.35)
+	c.a = 1.0
+	return c
+
+
 func _add_highlight() -> void:
-	# 外发光（略大于身体，不改碰撞半径 / 身体缩放）；垫到最底层
+	# 外发光（略大于身体，不改碰撞半径 / 身体缩放）；垫到最底层；无轮廓框
 	_glow = Polygon2D.new()
-	_glow.polygon = _ring_points(radius * 0.45)
-	var gc := body_color.lightened(0.45)
-	gc.a = 0.32
+	_glow.polygon = _ring_points(radius * 0.55)
+	var gc := highlight_body_color(body_color)
+	gc.a = 0.38
 	_glow.color = gc
 	add_child(_glow)
 	move_child(_glow, 0)
-	# 明亮轮廓贴合体型外沿（加在身体之后，画在上面）
-	_outline = Line2D.new()
-	_outline.width = 3.0
-	_outline.default_color = HIGHLIGHT_OUTLINE
-	_outline.closed = true
-	_outline.joint_mode = Line2D.LINE_JOINT_ROUND
-	_outline.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	_outline.end_cap_mode = Line2D.LINE_CAP_ROUND
-	_outline.points = _ring_points(2.0)
-	add_child(_outline)
-	# 少量环绕光点
+	# 适量提示性环绕光点
 	_sparks = Node2D.new()
 	add_child(_sparks)
 	for i in HIGHLIGHT_SPARK_COUNT:
 		var sp := Polygon2D.new()
-		sp.color = Color(1.0, 1.0, 0.85, 0.9)
+		sp.color = Color(1.0, 0.95, 0.55, 0.95)
 		sp.polygon = PackedVector2Array([
 			Vector2(0, -3), Vector2(2.2, 0), Vector2(0, 3), Vector2(-2.2, 0)
 		])
@@ -179,10 +178,15 @@ func highlight_spark_count() -> int:
 
 
 func has_highlight() -> bool:
-	return _outline != null and is_instance_valid(_outline) and _glow != null and is_instance_valid(_glow)
+	return _glow != null and is_instance_valid(_glow) and highlight_spark_count() > 0
+
+
+func has_outline() -> bool:
+	return false  # 明确无强调框/轮廓
 
 
 func set_weapon(id: String) -> void:
+	_extra_shots.clear()
 	weapon_id = id
 	weapon_level = 1
 	if id == "w_sawblade":
@@ -280,6 +284,7 @@ func add_max_hp(v: float) -> void:
 func _physics_process(delta: float) -> void:
 	if not active or dead:
 		return
+	_tick_extra_shot(delta)
 	var dir := TouchControls.movement_dir()
 	var move_mult := 1.25 if swift_t > 0.0 else 1.0
 	position += dir * speed * move_mult * delta
@@ -292,8 +297,6 @@ func _physics_process(delta: float) -> void:
 		_vis.position.y = bob
 	if _glow != null:
 		_glow.position.y = bob
-	if _outline != null:
-		_outline.position.y = bob
 	if _sparks != null:
 		_sparks.position.y = bob
 		_update_sparks(_anim_t)
@@ -359,10 +362,8 @@ func _shoot() -> void:
 				if is_instance_valid(t):
 					t.take_damage(current_damage(12.0 * arc_dmg_mult, t), self)
 			SFX.play("hit")
-			if randf() < double_chance:  # fx: 电弧表现接入点
-				for t in targets:
-					if is_instance_valid(t):
-						t.take_damage(current_damage(12.0 * arc_dmg_mult, t), self)
+			if randf() < double_chance:
+				_queue_extra_shot(Vector2.ZERO, 12.0 * arc_dmg_mult, 0)
 			return
 	var target := _nearest_enemy()
 	if target == null:
@@ -375,21 +376,69 @@ func _shoot() -> void:
 			_fire(target, 18.0 * dragon_dmg_mult, 2 + bullet_pierce_bonus)
 		"w_shotgun":
 			for i in pellet_count:
-				_fire_dir(base_dir.rotated((i - (pellet_count - 1) / 2.0) * 0.22), 6.0 * pellet_dmg_mult, 0, target)
+				_fire_dir(base_dir.rotated(pellet_angle(i)), 6.0 * pellet_dmg_mult, 0, target)
 		"w_sniper":
 			_fire(target, 26.0 * sniper_dmg_mult, sniper_pierce)
 		"w_boomerang":
 			for i in boom_count:
 				_fire_dir(base_dir.rotated((i - (boom_count - 1) / 2.0) * 0.35), 9.0 * boom_dmg_mult, 0, target)
 	if randf() < double_chance:
-		if weapon_id == "w_shotgun":
-			_fire_dir(base_dir, 6.0 * pellet_dmg_mult, 0, target)
-		elif weapon_id == "w_boomerang":
-			_fire_dir(base_dir.rotated(0.35), 9.0 * boom_dmg_mult, 0, target)
-		elif weapon_id == "w_dragon":
-			_fire(target, 18.0 * dragon_dmg_mult, 4 + bullet_pierce_bonus)
+		match weapon_id:
+			"w_shotgun": _queue_extra_shot(base_dir, 6.0 * pellet_dmg_mult, 0)
+			"w_boomerang": _queue_extra_shot(base_dir, 9.0 * boom_dmg_mult, 0)
+			"w_dragon": _queue_extra_shot(base_dir, 18.0 * dragon_dmg_mult, 4 + bullet_pierce_bonus)
+			"w_sniper": _queue_extra_shot(base_dir, 26.0 * sniper_dmg_mult, sniper_pierce)
+
+func pellet_angle(index: int) -> float:
+	# 固定总扇角；偶数弹丸保留正中一发，其余分配在两侧。
+	var slots := pellet_count if pellet_count % 2 == 1 else pellet_count + 1
+	var slot := index if index <= slots / 2 else index + (slots - pellet_count)
+	return (float(slot) / maxf(slots - 1, 1) * 2.0 - 1.0) * SHOTGUN_HALF_ANGLE
+
+func _queue_extra_shot(dir: Vector2, base_dmg: float, pierce: int) -> void:
+	_extra_shots.append({"dir": dir, "damage": base_dmg, "pierce": pierce, "remaining": DOUBLE_DELAY})
+
+func _tick_extra_shot(delta: float) -> void:
+	if not active or dead or drafting:
+		return
+	# 高攻速下也保留每次追加，不让下一次攻击覆盖等待中的弹丸。
+	for shot: Dictionary in _extra_shots.duplicate():
+		shot["remaining"] = float(shot["remaining"]) - delta
+		if float(shot["remaining"]) > 0.0:
+			continue
+		_extra_shots.erase(shot)
+		if weapon_id == "w_arc":
+			for target in _nearest_enemies(arc_targets, 340.0):
+				target.take_damage(current_damage(float(shot["damage"]), target), self)
 		else:
-			_fire(target, 26.0 * sniper_dmg_mult, sniper_pierce)
+			_fire_dir(shot["dir"], float(shot["damage"]), int(shot["pierce"]), _nearest_enemy())
+
+func combat_summary() -> String:
+	var rate := attack_speed_mult * (1.3 if berserk and hp < max_hp * 0.3 else 1.0)
+	var base_dmg := 18.0 * dragon_dmg_mult
+	match weapon_id:
+		"w_shotgun": base_dmg = 6.0 * pellet_dmg_mult
+		"w_sniper": base_dmg = 26.0 * sniper_dmg_mult
+		"w_boomerang": base_dmg = 9.0 * boom_dmg_mult
+		"w_arc": base_dmg = 12.0 * arc_dmg_mult
+		"w_sawblade": base_dmg = 10.0 * saw_dmg_mult
+	var dmg := base_dmg * damage_mult
+	if revenge:
+		dmg *= 1.0 + 0.04 * floorf((max_hp - hp) / max_hp * 10.0)
+	if grit and hp < max_hp * 0.5:
+		dmg *= 1.2
+	var hits := rate / (base_interval * float(CardsS.WEAPONS[weapon_id]["interval_mult"]))
+	var cadence := "攻击 %.2f 次/秒" % hits
+	if weapon_id == "w_sawblade":
+		cadence = "接触结算 %.2f 次/秒（共享冷却）" % (attack_speed_mult * saw_count / 0.3)
+	var buffs := []
+	var seen := {}
+	for id in owned_passives:
+		seen[id] = int(seen.get(id, 0)) + 1
+	for id in seen:
+		buffs.append("%s×%d" % [CardsS.get_card(id).get("name", id), seen[id]])
+	var unit := "每弹" if weapon_id == "w_shotgun" else "每次命中"
+	return "%s Lv%d · %s\n%s伤害 %.1f（未计护甲/暴击）· 对精英 +%.0f%%\n移速 %.0f · 护甲 %.0f · 击杀回血 %.0f · 再生 %.1f/秒\n暴击 %.0f%% · 追加 %.0f%% · 首领奖励 +%d/槽位\n增益：%s" % [CardsS.WEAPONS[weapon_id]["name"], weapon_level, cadence, unit, dmg, giant_slayer * 100.0, speed * (1.25 if swift_t > 0.0 else 1.0), armor, lifesteal, regen, minf(crit_chance, 1.0) * 100.0, minf(double_chance, 1.0) * 100.0, magnet * 3, "、".join(buffs) if not buffs.is_empty() else "无"]
 
 func _fire(target: Node2D, base_dmg: float, pierce: int) -> void:
 	_fire_dir((target.position - position).normalized(), base_dmg, pierce, target)
