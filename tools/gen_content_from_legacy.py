@@ -38,7 +38,7 @@ def mods_block(mods, start):
 def write_card(c):
     mods = parse_effect(c["apply"])
     subs, refs = mods_block(mods, 0)
-    lines = [f'[gd_resource type="Resource" script_class="CardDef" load_steps={len(subs) + 3} format=3]', "",
+    lines = [f'[gd_resource type="Resource" load_steps={len(subs) + 3} format=3]', "",
              '[ext_resource type="Script" path="res://scripts/core/card_def.gd" id="card"]',
              '[ext_resource type="Script" path="res://scripts/core/stat_modifier.gd" id="mod"]', ""]
     lines += subs
@@ -50,7 +50,7 @@ def write_card(c):
         body.append("req = PackedStringArray(" + ", ".join(q(r) for r in c["req"]) + ")")
     tags = TAGS.get(c["id"], [WTAG.get(c.get("weapon", ""), "")])
     body.append("tags = PackedStringArray(" + ", ".join(q(t) for t in tags if t) + ")")
-    body.append(f'modifiers = Array[ExtResource("mod")]([{", ".join(refs)}])')
+    body.append(f'modifiers = Array[Resource]([{", ".join(refs)}])')
     (ROOT / "content/cards" / f'{c["id"]}.tres').write_text("\n".join(lines + body) + "\n", encoding="utf-8")
 
 def main():
@@ -79,11 +79,11 @@ def main():
         subs, lvrefs, n = [], [], 0
         for lv in sorted(levels[w]):
             s, refs = mods_block(levels[w][lv], n); n += len(s); subs += s
-            subs.append(f'[sub_resource type="Resource" id="lv{lv}"]\nscript = ExtResource("wlv")\nlevel = {lv}\nmodifiers = Array[ExtResource("mod")]([{", ".join(refs)}])\n')
+            subs.append(f'[sub_resource type="Resource" id="lv{lv}"]\nscript = ExtResource("wlv")\nlevel = {lv}\nmodifiers = Array[Resource]([{", ".join(refs)}])\n')
             lvrefs.append(f'SubResource("lv{lv}")')
-        txt = [f'[gd_resource type="Resource" script_class="WeaponDef" load_steps={len(subs) + 4} format=3]', ""] + ext + [""] + subs + [
+        txt = [f'[gd_resource type="Resource" load_steps={len(subs) + 4} format=3]', ""] + ext + [""] + subs + [
             "[resource]", 'script = ExtResource("wdef")', f'id = &"{w}"', f'display_name = {q(name)}', f'interval_mult = {im}',
-            f'mech_tag = &"{WTAG[w]}"', f'owner_char = &"{owners[w]}"', f'levels = Array[ExtResource("wlv")]([{", ".join(lvrefs)}])']
+            f'mech_tag = &"{WTAG[w]}"', f'owner_char = &"{owners[w]}"', f'levels = Array[Resource]([{", ".join(lvrefs)}])']
         (ROOT / "content/weapons" / f"{w}.tres").write_text("\n".join(txt) + "\n", encoding="utf-8")
     order = re.search(r"UNLOCK_ORDER := \[([^\]]*)\]", cards_src)[1]
     order_ids = re.findall(r'"(\w+)"', order)
@@ -92,10 +92,10 @@ def main():
                '[ext_resource type="Script" path="res://scripts/core/card_def.gd" id="card"]'], []
     for w in weapons: ext.append(f'[ext_resource type="Resource" path="res://content/weapons/{w}.tres" id="{w}"]')
     for c in cards: ext.append(f'[ext_resource type="Resource" path="res://content/cards/{c["id"]}.tres" id="{c["id"]}"]')
-    txt = [f'[gd_resource type="Resource" script_class="ContentLibrary" load_steps={len(ext) + 1} format=3]', ""] + ext + ["",
+    txt = [f'[gd_resource type="Resource" load_steps={len(ext) + 1} format=3]', ""] + ext + ["",
            "[resource]", 'script = ExtResource("lib")',
-           f'weapons = Array[ExtResource("wdef")]([{", ".join(f"ExtResource({q(w)})" for w in weapons)}])',
-           f'cards = Array[ExtResource("card")]([{", ".join(f"ExtResource({q(c["id"])})" for c in cards)}])',
+           f'weapons = Array[Resource]([{", ".join(f"ExtResource({q(w)})" for w in weapons)}])',
+           f'cards = Array[Resource]([{", ".join(f"ExtResource({q(c["id"])})" for c in cards)}])',
            "unlock_order = PackedStringArray(" + ", ".join(q(i) for i in order_ids) + ")"]
     (ROOT / "content/library.tres").write_text("\n".join(txt) + "\n", encoding="utf-8")
     print(f"generated {len(cards)} cards, {len(weapons)} weapons, {sum(len(v) for v in levels.values())} weapon levels")

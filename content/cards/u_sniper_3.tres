@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="CardDef" load_steps=4 format=3]
+[gd_resource type="Resource" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/core/card_def.gd" id="card"]
 [ext_resource type="Script" path="res://scripts/core/stat_modifier.gd" id="mod"]
@@ -20,4 +20,4 @@ owner_char = &"ranger"
 weapon = &"w_sniper"
 tier = 3
 tags = PackedStringArray("bullet")
-modifiers = Array[ExtResource("mod")]([SubResource("m0")])
+modifiers = Array[Resource]([SubResource("m0")])

@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="CardDef" load_steps=4 format=3]
+[gd_resource type="Resource" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/core/card_def.gd" id="card"]
 [ext_resource type="Script" path="res://scripts/core/stat_modifier.gd" id="mod"]
@@ -17,4 +17,4 @@ display_name = "弹药带"
 desc = "攻速 +15%。"
 m0 = true
 tags = PackedStringArray("tempo")
-modifiers = Array[ExtResource("mod")]([SubResource("m0")])
+modifiers = Array[Resource]([SubResource("m0")])

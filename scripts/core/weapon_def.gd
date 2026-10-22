@@ -1,4 +1,3 @@
-class_name WeaponDef
 extends Resource
 ## 武器定义。content/weapons/*.tres。等级成长全部是数据（levels），player.upgrade_weapon 只做查表。
 const WeaponLevelS := preload("res://scripts/core/weapon_level.gd")
@@ -8,9 +7,9 @@ const WeaponLevelS := preload("res://scripts/core/weapon_level.gd")
 ## 机制标签：bullet / boomerang / arc / melee（被动 req 过滤用）
 @export var mech_tag: StringName
 @export var owner_char: StringName
-@export var levels: Array[WeaponLevelS] = []
+@export var levels: Array[Resource] = []
 
-func level_def(lv: int) -> WeaponLevelS:
+func level_def(lv: int) -> Resource:
 	for l in levels:
 		if l.level == lv:
 			return l

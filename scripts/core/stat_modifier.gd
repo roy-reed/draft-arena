@@ -1,4 +1,3 @@
-class_name StatModifier
 extends Resource
 ## 数据化的属性修饰：作用于目标对象（玩家）的一个脚本变量或一个方法。
 ## 新内容只组合这些原语，不写代码。

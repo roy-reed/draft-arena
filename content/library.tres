@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="ContentLibrary" load_steps=49 format=3]
+[gd_resource type="Resource" load_steps=49 format=3]
 
 [ext_resource type="Script" path="res://scripts/core/content_library.gd" id="lib"]
 [ext_resource type="Script" path="res://scripts/core/weapon_def.gd" id="wdef"]
@@ -51,6 +51,6 @@
 
 [resource]
 script = ExtResource("lib")
-weapons = Array[ExtResource("wdef")]([ExtResource("w_dragon"), ExtResource("w_shotgun"), ExtResource("w_sniper"), ExtResource("w_boomerang"), ExtResource("w_arc"), ExtResource("w_sawblade")])
-cards = Array[ExtResource("card")]([ExtResource("u_dragon_2"), ExtResource("u_dragon_3"), ExtResource("u_sniper_2"), ExtResource("u_sniper_3"), ExtResource("u_saw_2"), ExtResource("u_saw_3"), ExtResource("u_boom_2"), ExtResource("u_boom_3"), ExtResource("u_shotgun_2"), ExtResource("u_shotgun_3"), ExtResource("u_arc_2"), ExtResource("u_arc_3"), ExtResource("u_dragon_4"), ExtResource("u_sniper_4"), ExtResource("u_saw_4"), ExtResource("u_boom_4"), ExtResource("u_shotgun_4"), ExtResource("u_arc_4"), ExtResource("p_whetstone"), ExtResource("p_ammo_belt"), ExtResource("p_anvil"), ExtResource("p_sneakers"), ExtResource("p_thorns"), ExtResource("p_fang"), ExtResource("p_magnet"), ExtResource("p_frost"), ExtResource("p_double"), ExtResource("p_crit"), ExtResource("p_berserk"), ExtResource("p_giantslayer"), ExtResource("p_regen"), ExtResource("p_revenge"), ExtResource("p_swift"), ExtResource("p_lens"), ExtResource("p_armor"), ExtResource("p_golden"), ExtResource("p_grit"), ExtResource("p_burst"), ExtResource("p_glass")])
+weapons = Array[Resource]([ExtResource("w_dragon"), ExtResource("w_shotgun"), ExtResource("w_sniper"), ExtResource("w_boomerang"), ExtResource("w_arc"), ExtResource("w_sawblade")])
+cards = Array[Resource]([ExtResource("u_dragon_2"), ExtResource("u_dragon_3"), ExtResource("u_sniper_2"), ExtResource("u_sniper_3"), ExtResource("u_saw_2"), ExtResource("u_saw_3"), ExtResource("u_boom_2"), ExtResource("u_boom_3"), ExtResource("u_shotgun_2"), ExtResource("u_shotgun_3"), ExtResource("u_arc_2"), ExtResource("u_arc_3"), ExtResource("u_dragon_4"), ExtResource("u_sniper_4"), ExtResource("u_saw_4"), ExtResource("u_boom_4"), ExtResource("u_shotgun_4"), ExtResource("u_arc_4"), ExtResource("p_whetstone"), ExtResource("p_ammo_belt"), ExtResource("p_anvil"), ExtResource("p_sneakers"), ExtResource("p_thorns"), ExtResource("p_fang"), ExtResource("p_magnet"), ExtResource("p_frost"), ExtResource("p_double"), ExtResource("p_crit"), ExtResource("p_berserk"), ExtResource("p_giantslayer"), ExtResource("p_regen"), ExtResource("p_revenge"), ExtResource("p_swift"), ExtResource("p_lens"), ExtResource("p_armor"), ExtResource("p_golden"), ExtResource("p_grit"), ExtResource("p_burst"), ExtResource("p_glass")])
 unlock_order = PackedStringArray("p_berserk", "p_giantslayer", "p_regen", "p_revenge", "p_swift", "p_lens", "p_armor", "p_golden", "p_grit", "p_burst", "p_glass")

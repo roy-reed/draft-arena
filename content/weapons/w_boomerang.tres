@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="WeaponDef" load_steps=13 format=3]
+[gd_resource type="Resource" load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/core/weapon_def.gd" id="wdef"]
 [ext_resource type="Script" path="res://scripts/core/weapon_level.gd" id="wlv"]
@@ -19,7 +19,7 @@ value = 0.4
 [sub_resource type="Resource" id="lv2"]
 script = ExtResource("wlv")
 level = 2
-modifiers = Array[ExtResource("mod")]([SubResource("m0"), SubResource("m1")])
+modifiers = Array[Resource]([SubResource("m0"), SubResource("m1")])
 
 [sub_resource type="Resource" id="m2"]
 script = ExtResource("mod")
@@ -30,7 +30,7 @@ value = 1.0
 [sub_resource type="Resource" id="lv3"]
 script = ExtResource("wlv")
 level = 3
-modifiers = Array[ExtResource("mod")]([SubResource("m2")])
+modifiers = Array[Resource]([SubResource("m2")])
 
 [sub_resource type="Resource" id="m3"]
 script = ExtResource("mod")
@@ -53,7 +53,7 @@ value = 0.3
 [sub_resource type="Resource" id="lv4"]
 script = ExtResource("wlv")
 level = 4
-modifiers = Array[ExtResource("mod")]([SubResource("m3"), SubResource("m4"), SubResource("m5")])
+modifiers = Array[Resource]([SubResource("m3"), SubResource("m4"), SubResource("m5")])
 
 [resource]
 script = ExtResource("wdef")
@@ -62,4 +62,4 @@ display_name = "回旋镖"
 interval_mult = 1.2
 mech_tag = &"boomerang"
 owner_char = &"brute"
-levels = Array[ExtResource("wlv")]([SubResource("lv2"), SubResource("lv3"), SubResource("lv4")])
+levels = Array[Resource]([SubResource("lv2"), SubResource("lv3"), SubResource("lv4")])

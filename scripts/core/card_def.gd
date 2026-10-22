@@ -1,5 +1,5 @@
-class_name CardDef
 extends Resource
+## 注：数组用 Array[Resource] 而非按脚本类型化，Godot 4.4.1 首次 --import 时按 preload 脚本类型化的导出数组会导致资源泄漏报错（CI 冷启动实测）。
 ## 一张构筑牌（武器升级卡或被动）。content/cards/*.tres。
 
 const StatModifierS := preload("res://scripts/core/stat_modifier.gd")
@@ -18,7 +18,7 @@ const StatModifierS := preload("res://scripts/core/stat_modifier.gd")
 @export var req: PackedStringArray = PackedStringArray()
 ## 构筑标签（M2 共鸣用），见 docs/design/ARCH_V2.md 第 2 节
 @export var tags: PackedStringArray = PackedStringArray()
-@export var modifiers: Array[StatModifierS] = []
+@export var modifiers: Array[Resource] = []
 
 func apply_to(target: Object) -> void:
 	for m in modifiers:
