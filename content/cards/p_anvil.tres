@@ -1,0 +1,20 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/card_def.gd" id="card"]
+[ext_resource type="Script" path="res://scripts/core/stat_modifier.gd" id="mod"]
+
+[sub_resource type="Resource" id="m0"]
+script = ExtResource("mod")
+stat = &"add_max_hp"
+op = 4
+value = 15.0
+
+[resource]
+script = ExtResource("card")
+id = &"p_anvil"
+kind = "passive"
+display_name = "铁砧"
+desc = "最大生命 +15。"
+m0 = true
+tags = PackedStringArray("survival")
+modifiers = Array[Resource]([SubResource("m0")])

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/card_def.gd" id="card"]
+[ext_resource type="Script" path="res://scripts/core/stat_modifier.gd" id="mod"]
+
+[sub_resource type="Resource" id="m0"]
+script = ExtResource("mod")
+stat = &"slow_on_hit"
+op = 2
+value = 0.0
+
+[resource]
+script = ExtResource("card")
+id = &"p_frost"
+kind = "passive"
+display_name = "冰霜符文"
+desc = "命中使敌人减速 25%，持续 1.2 秒。"
+m0 = true
+tags = PackedStringArray("control")
+modifiers = Array[Resource]([SubResource("m0")])

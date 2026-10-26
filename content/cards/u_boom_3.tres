@@ -1,0 +1,23 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/card_def.gd" id="card"]
+[ext_resource type="Script" path="res://scripts/core/stat_modifier.gd" id="mod"]
+
+[sub_resource type="Resource" id="m0"]
+script = ExtResource("mod")
+stat = &"upgrade_weapon"
+op = 3
+value = 0.0
+
+[resource]
+script = ExtResource("card")
+id = &"u_boom_3"
+kind = "weapon"
+display_name = "回旋镖·分裂"
+desc = "每次投掷出 2 把回旋镖。"
+m0 = true
+owner_char = &"brute"
+weapon = &"w_boomerang"
+tier = 3
+tags = PackedStringArray("boomerang")
+modifiers = Array[Resource]([SubResource("m0")])
