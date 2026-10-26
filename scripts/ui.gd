@@ -53,7 +53,7 @@ var draft_stats: Label
 var pause_stats: Label
 # 每条提示的 [键鼠版, 触屏版]；键鼠版与原文完全一致
 const TEXTS := {
-	"hud_hint": ["WASD / 方向键移动 · 攻击全自动 · ESC 暂停 · F11 全屏", "任意位置按下呼出摇杆移动 · 攻击全自动 · 右上角 II 暂停"],
+	"hud_hint": ["WASD / 方向键移动 · 攻击全自动 · ESC 暂停 · Tab 属性 · F11 全屏", "任意位置按下呼出摇杆移动 · 攻击全自动 · 右上角 II 暂停"],
 	"menu_hint": ["选择角色（按 1 / 2 / 3 或点击），Space 或按钮开始", "点选角色，再点“开始”"],
 	"start": ["开始（Space）", "开始"],
 	"resume": ["继续（ESC / Space）", "继续"],
