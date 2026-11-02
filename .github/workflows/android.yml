@@ -2,11 +2,13 @@ name: android
 
 # Android arm64 APK 导出：
 # - pull_request / push main / 手动：用一次性 debug keystore 导出 APK 做冒烟（签名、包名、arm64、横屏校验）
+#   PR 上只在导出相关文件变化、或分支前缀/标题范围为 mobile、android 时导出，草稿 PR 不导出（ci/change_scope.py）
 # - release.yml 推送 v* 标签时以 mode=release 复用本工作流，签名 keystore 由 GitHub Secrets 传入，绝不入库
 on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
   workflow_call:
     inputs:
@@ -38,7 +40,23 @@ env:
   GODOT_TEMPLATES_SHA512: 8f461c7d6e91a0fbabfc95b1e4ca70ff1732c6f2920956a16b086ec2a85b5f7e238baf4dbce60dcc5630fae3bcb9a1fa2ae2027b92cb495c02d082705715e441
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      android: ${{ steps.scope.outputs.android }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 2   # PR 合并提交及其父提交，供 git diff 判断改动范围
+
+      - name: Detect change scope
+        id: scope
+        run: python3 ci/change_scope.py >> "$GITHUB_OUTPUT"
+
   apk:
+    needs: changes
+    if: needs.changes.outputs.android == 'true' && !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:

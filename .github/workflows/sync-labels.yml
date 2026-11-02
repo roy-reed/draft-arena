@@ -1,0 +1,38 @@
+name: sync-labels
+
+# 按 .github/labels.json 新建/更新仓库标签（ci/sync_labels.py），从不删除、不改名。
+# main 上目录变化时写入；PR 中只打印计划；也可手动运行（默认只打印）。
+on:
+  push:
+    branches: [main]
+    paths: ['.github/labels.json', 'ci/sync_labels.py']
+  pull_request:
+    paths: ['.github/labels.json', 'ci/sync_labels.py']
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: '写入标签（不勾选则只打印计划）'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write   # 新建/更新仓库标签
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Sync labels
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPLY: ${{ github.event_name == 'push' || inputs.apply == true }}
+        run: |
+          if [ "$APPLY" = "true" ]; then python3 ci/sync_labels.py --apply; else python3 ci/sync_labels.py; fi

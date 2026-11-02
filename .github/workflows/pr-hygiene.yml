@@ -1,0 +1,35 @@
+name: pr-hygiene
+
+# PR 卫生检查（ci/pr_hygiene.py）：标题格式、size 标签、高风险路径 risk:L2、待决策 needs-decision。
+# 只给 PR 加/换标签，不改代码、不评论、不合并；fork 来的 PR 只检查不写。
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-hygiene-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write         # 标签接口属于 issues API
+      pull-requests: write  # 读取 PR 改动文件、给 PR 加标签
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Unit tests (collaboration scripts)
+        run: python3 -m unittest discover -s ci -p 'test_*.py'
+
+      - name: PR hygiene
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 ci/pr_hygiene.py

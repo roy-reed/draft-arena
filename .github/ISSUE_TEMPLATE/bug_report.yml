@@ -1,0 +1,59 @@
+name: 缺陷报告
+description: 出错、卡死、构建失败，或表现与设计不符
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: 一次只报一个问题；能复现的步骤比感受描述更有用。
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: 发布版本号、构建日期或提交号
+      placeholder: v0.3.0 / 2026-10-15 构建
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 平台
+      options:
+        - Windows
+        - Android
+        - 编辑器或源码运行
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 选择角色……
+        2. 打到第 N 波……
+        3. 出现……
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望与实际
+      placeholder: 期望……；实际……
+    validations:
+      required: true
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: 出现频率
+      options:
+        - 每次
+        - 经常
+        - 偶尔
+        - 只出现过一次
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或截图
+      description: 可选，可直接拖入图片或文件

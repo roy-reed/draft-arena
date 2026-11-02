@@ -16,3 +16,6 @@ zoom_*.png
 *.keystore
 *.jks
 *.keystore.pass
+
+# 并行 agent 工作区（git worktree）
+.worktree/

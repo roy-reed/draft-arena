@@ -1,0 +1,57 @@
+name: 试玩反馈
+description: 真人试玩后的手感、难度、可读性等感受
+labels: ["playtest-feedback", "needs-triage"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: 发布版本号、构建日期或提交号
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 平台
+      options:
+        - Windows
+        - Android
+        - 编辑器或源码运行
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 反馈类型
+      multiple: true
+      options:
+        - 手感与操作
+        - 难度与数值
+        - 画面可读性
+        - 界面与菜单
+        - 性能与卡顿
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: feeling
+    attributes:
+      label: 具体感受
+      placeholder: 在什么情况下（角色、波次、武器），感觉……，希望……
+    validations:
+      required: true
+  - type: dropdown
+    id: impact
+    attributes:
+      label: 影响程度
+      options:
+        - 影响继续玩
+        - 明显但能忍
+        - 小瑕疵
+    validations:
+      required: true
+  - type: textarea
+    id: media
+    attributes:
+      label: 截图或录屏
+      description: 可选

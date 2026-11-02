@@ -1,0 +1,14 @@
+[
+  {"name": "bug", "color": "d73a4a", "description": "Something isn't working"},
+  {"name": "enhancement", "color": "a2eeef", "description": "New feature or request"},
+  {"name": "documentation", "color": "0075ca", "description": "Improvements or additions to documentation"},
+  {"name": "playtest-feedback", "color": "d93f0b", "description": "真人测试反馈"},
+  {"name": "M3", "color": "0e8a16", "description": ""},
+  {"name": "needs-triage", "color": "fbca04", "description": "新提交，待分拣"},
+  {"name": "needs-decision", "color": "b60205", "description": "待 Roy 决策：勾选 PR 中「待 Roy 决策」条目即视为同意"},
+  {"name": "risk:L2", "color": "5319e7", "description": "改动 CI、协作规则或发布配置，需 Roy 明确同意"},
+  {"name": "size:S", "color": "c2e0c6", "description": "改动少于 100 行（增+删）"},
+  {"name": "size:M", "color": "bfdadc", "description": "改动 100–499 行"},
+  {"name": "size:L", "color": "fef2c0", "description": "改动 500–999 行"},
+  {"name": "size:XL", "color": "f9d0c4", "description": "改动 1000 行及以上，建议拆分"}
+]
