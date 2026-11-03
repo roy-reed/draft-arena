@@ -27,8 +27,12 @@ TITLE = re.compile(
 SIZES = ((100, "size:S"), (500, "size:M"), (1000, "size:L"), (None, "size:XL"))
 RISK_LABEL = "risk:L2"
 RISK_PATHS = (".github/workflows/*", "ci/*", "AGENTS.md", "export_presets.cfg", "requirements-tools.txt")
-# 只新增检查登记（该文件没有删除行）属于常规改动；删改已有检查才算高风险
-ADD_ONLY_OK = ("ci/run-tests.ps1",)
+# 只接受无插值、无命令的声明式登记；patch 缺失/截断或新增其它语句一律算高风险。
+REGISTRY_ROW = re.compile(
+    r"^\s*\[pscustomobject\]@\{ Name = '[a-z0-9-]+';\s*"
+    r"Args = \$base \+ @\('--script', 'res://scripts/tests/[a-z0-9_]+_test\.gd'\);\s*"
+    r"Marker = '[A-Z0-9_]+_OK' \}\s*$"
+)
 DECISION_LABEL = "needs-decision"
 DECISION_HEADING = "待 Roy 决策"
 VERIFY_HEADING = "验收与验证"
@@ -79,17 +83,28 @@ def decision_state(body: str) -> str:
     return "open" if any(w not in EMPTY for w in words) else "none"
 
 
+def readonly_registration(item) -> bool:
+    if (item.get("filename") != "ci/run-tests.ps1" or item.get("status") != "modified"
+            or item.get("deletions") != 0 or item.get("previous_filename")):
+        return False
+    added = [line[1:] for line in (item.get("patch") or "").splitlines() if line.startswith("+")]
+    return (bool(added) and len(added) == item.get("additions")
+            and all(REGISTRY_ROW.fullmatch(line) for line in added))
+
+
 def risky_paths(items) -> list:
     """命中高风险路径的文件（items 为 PR 文件条目；重命名时新旧路径都检查）。"""
     hits = set()
+    registrations = set()
     for item in items:
         for path in filter(None, (item.get("filename"), item.get("previous_filename"))):
             if not any(fnmatch.fnmatchcase(path, pat) for pat in RISK_PATHS):
                 continue
-            if path in ADD_ONLY_OK and item.get("status") == "modified" and item.get("deletions", 0) == 0:
+            if readonly_registration(item):
+                registrations.add(path)
                 continue
             hits.add(path)
-    return sorted(hits)
+    return sorted(hits | registrations) if hits else []
 
 
 def plan_labels(current, size: str, risky: bool, decision: str):

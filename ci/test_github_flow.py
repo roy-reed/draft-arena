@@ -1,5 +1,10 @@
 """协作脚本的单元测试（纯标准库、不联网）：python3 -m unittest discover -s ci -p 'test_*.py'"""
 import json
+import configparser
+import subprocess
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
 import os
 import re
 import sys
@@ -73,7 +78,16 @@ class RiskAndLabelTest(unittest.TestCase):
         self.assertEqual(pr_hygiene.risky_paths(items), [".github/workflows/tests-linux.yml", "AGENTS.md"])
 
     def test_registering_a_test_is_routine(self):
-        self.assertEqual(pr_hygiene.risky_paths([self.item("ci/run-tests.ps1")]), [])
+        row = "    [pscustomobject]@{ Name = 'new-test'; Args = $base + @('--script', 'res://scripts/tests/new_test.gd'); Marker = 'NEW_OK' }"
+        entry = dict(self.item("ci/run-tests.ps1"), additions=1, patch="@@ -40,0 +41 @@\n+" + row)
+        self.assertEqual(pr_hygiene.risky_paths([entry]), [])
+        for name in (".github/workflows/tests-linux.yml", "AGENTS.md", "export_presets.cfg", "ci/check_doc_refs.py"):
+            self.assertIn(name, pr_hygiene.risky_paths([entry, self.item(name)]))
+        for unsafe in ("Write-Output bad", row + "; exit 0", row.replace("NEW_OK", "$env:SECRET_OK")):
+            self.assertEqual(pr_hygiene.risky_paths([dict(entry, patch="@@ -40,0 +41 @@\n+" + unsafe)]), ["ci/run-tests.ps1"])
+        self.assertEqual(pr_hygiene.risky_paths([self.item("ci/run-tests.ps1")]), ["ci/run-tests.ps1"])
+        self.assertEqual(pr_hygiene.risky_paths([dict(entry, additions=2)]), ["ci/run-tests.ps1"])
+        self.assertEqual(pr_hygiene.risky_paths([dict(entry, patch=None)]), ["ci/run-tests.ps1"])
         self.assertEqual(pr_hygiene.risky_paths([self.item("ci/run-tests.ps1", deletions=2)]), ["ci/run-tests.ps1"])
 
     def test_rename_out_of_ci_still_counts(self):
@@ -104,6 +118,85 @@ class ChangeScopeTest(unittest.TestCase):
         self.assertEqual(change_scope.classify(["scripts/ui.gd"], "fix/x", "fix(ui,android): 返回键"),
                          {"game": True, "android": True})
         self.assertEqual(change_scope.classify([".github/workflows/pr-hygiene.yml"]), {"game": True, "android": False})
+
+
+class WorkflowEventsTest(unittest.TestCase):
+    def test_metadata_and_draft_consumers(self):
+        def workflow(name):
+            return (Path(ROOT) / ".github/workflows" / (name + ".yml")).read_text()
+        for name in ("android", "pr-hygiene"):
+            self.assertRegex(workflow(name), r"types: \[[^\]]*edited")
+        for name in ("android", "build-windows"):
+            for event in ("ready_for_review", "converted_to_draft"):
+                self.assertRegex(workflow(name), r"types: \[[^\]]*" + event)
+        for name in ("tests-linux", "sync-labels", "build-windows"):
+            self.assertNotIn("edited", workflow(name))
+
+
+class MergeScopeTest(unittest.TestCase):
+    def test_real_merge_commits_and_fallback(self):
+        cases = (
+            ("docs", {"docs/note.md": "text"}, None, False, False),
+            ("code", {"scripts/example.gd": "code"}, None, True, False),
+            ("export-rename", {}, ("export_presets.cfg", "old.cfg"), True, True),
+            ("ignored-store", {"store/new.png": "asset"}, None, False, False),
+            ("missing-ignore", {"store/new.png": "asset", "store/.gdignore": None}, None, True, False),
+            ("ignore-only", {"store/.gdignore": None}, None, True, False),
+            ("store-md", {"store/note.md": "text", "store/.gdignore": None}, None, True, False),
+        )
+        for name, changes, rename, game, android in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                def git(*args):
+                    return subprocess.check_output(["git", *args], cwd=root, stderr=subprocess.DEVNULL, text=True).strip()
+                def write(rel, content):
+                    path = root / rel
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    if content is None:
+                        path.unlink()
+                    else:
+                        path.write_text(content)
+                git("init", "-b", "base")
+                git("config", "user.name", "Scope Test")
+                git("config", "user.email", "scope@example.invalid")
+                for rel in ("export_presets.cfg", "store/.gdignore", "README.md"):
+                    write(rel, "base")
+                git("add", ".")
+                git("commit", "-qm", "base")
+                git("checkout", "-qb", "topic")
+                for rel, content in changes.items():
+                    write(rel, content)
+                if rename:
+                    git("mv", *rename)
+                git("add", "-A")
+                git("commit", "-qm", "topic")
+                event = root / "event.json"
+                event.write_text(json.dumps({"pull_request": {"number": 1, "head": {"ref": "fix/test"}, "title": "fix: test"}}))
+                env = dict(os.environ, GITHUB_EVENT_NAME="pull_request", GITHUB_EVENT_PATH=str(event))
+                def detect():
+                    result = subprocess.run([sys.executable, str(Path(ROOT) / "ci/change_scope.py")], cwd=root,
+                                            env=env, capture_output=True, text=True, check=True)
+                    return result.stdout, result.stderr
+                out, err = detect()
+                self.assertEqual(out, "game=true\nandroid=true\n")
+                self.assertIn("回退全量", err)
+                git("checkout", "base")
+                git("merge", "--no-ff", "topic", "-m", "merge")
+                out, _ = detect()
+                self.assertEqual(out, f"game={str(game).lower()}\nandroid={str(android).lower()}\n")
+                print(f"MERGE_SCOPE_OK {name}: {out.strip().replace(chr(10), ' ')}; non-merge=all")
+
+    def test_store_without_marker_and_export_contract(self):
+        with tempfile.TemporaryDirectory() as tmp, patch("os.getcwd", return_value=tmp):
+            self.assertEqual(change_scope.classify(["store/unlisted.png"]), {"game": True, "android": False})
+            self.assertEqual(change_scope.classify(["store/note.md"]), {"game": False, "android": False})
+        cfg = configparser.ConfigParser()
+        cfg.read(Path(ROOT) / "export_presets.cfg")
+        for section in cfg.sections():
+            if cfg.has_option(section, "exclude_filter"):
+                patterns = cfg.get(section, "exclude_filter").strip('"').split(',')
+                for pattern in ("*.md", "docs/*"):
+                    self.assertIn(pattern, patterns)
 
 
 class LabelCatalogTest(unittest.TestCase):
