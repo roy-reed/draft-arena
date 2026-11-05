@@ -17,13 +17,13 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 # 只动这些文件时不会影响游戏本体：export_presets.cfg 的 exclude_filter 已排除 *.md 与 docs/*，
-# store/ 由 store/.gdignore 排除在 Godot 导入与发布包之外
+# store/ 的位图仅在 .gdignore 实际存在时豁免；标记本身的改动仍需检查
 DOC_ONLY = (
     "*.md",
     "docs/*",
-    "store/*",
     "LICENSE*",
     ".github/ISSUE_TEMPLATE/*",
     ".github/pull_request_template.md",
@@ -55,7 +55,12 @@ def mobile_hint(head_ref: str, title: str) -> bool:
 
 
 def classify(files, head_ref: str = "", title: str = "") -> dict:
-    game = any(not matches(f, DOC_ONLY) for f in files)
+    root = Path.cwd()
+    # .gdignore 是目录标记，不读取其内容为 glob；缺失时按可能进入包的资源处理。
+    store_ignored = (root / "store/.gdignore").is_file()
+    game = any(not (matches(f, DOC_ONLY) or
+                   (f.startswith("store/") and f != "store/.gdignore" and store_ignored))
+               for f in files)
     android = game and (any(matches(f, ANDROID_PATHS) for f in files) or mobile_hint(head_ref, title))
     return {"game": game, "android": android}
 

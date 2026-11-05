@@ -1,5 +1,11 @@
 # 进度日志 — 每次收工追加 ≤5 行，倒序排列
 
+## 2026-11-03（PR #23 三项 CI 评审补修）
+- Android 补 edited 与转草稿事件，Windows 补转草稿事件；Linux 测试与标签同步不随描述编辑重跑。
+- 测试登记豁免仅接受完整 patch 中的纯声明式新增行；混改 CI/协作/发布路径仍标 risk:L2。
+- store 位图豁免依赖实际 .gdignore 标记，删除/移动标记触发测试；新增真实合并提交与边界回归。
+- 验证：17 项 Python 自检、7 类临时合并提交、文档引用与 13 项 Godot 快速命令全绿（双 SMOKE_OK / SIM_OK）；未改玩法/数值/存档。
+
 ## 2026-10-17（协作流程：GitHub 入口与测试分层）
 - 新增 Issue 表单（缺陷/试玩反馈/需求）、PR 模板与标签目录；PR 自动检查标题格式并打 size、risk:L2、needs-decision 标签。
 - 测试分层：只改文档的 PR 跳过 Godot；Windows PR 构建只做导入+导出+exe smoke；APK 仅导出配置或 mobile 改动时导出；草稿 PR 不构建安装包；main 与发布仍全量。
