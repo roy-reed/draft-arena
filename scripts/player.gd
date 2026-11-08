@@ -75,6 +75,7 @@ var _sparks: Node2D = null
 const HIGHLIGHT_SPARK_COUNT := 4
 
 const CardsS := preload("res://scripts/cards.gd")
+const ContentLibraryS := preload("res://scripts/core/content_library.gd")
 const SawbladeS := preload("res://scripts/sawblade.gd")
 const BASE_HIT_KNOCKBACK := 130.0
 const SHOTGUN_HIT_KNOCKBACK := 155.0
@@ -199,58 +200,16 @@ func hit_knockback_strength() -> float:
 	return SHOTGUN_HIT_KNOCKBACK if weapon_id == "w_shotgun" else BASE_HIT_KNOCKBACK
 
 func upgrade_weapon() -> void:
+	# arch-v2 M1：等级成长查 content/weapons/<id>.tres 的 levels（Lv2/Lv3/Lv4=进化），不再硬编码
 	weapon_level += 1
-	match [weapon_id, weapon_level]:
-		["w_dragon", 2]:
-			sniper_pierce += 2
-			dragon_dmg_mult += 0.15  # 穿透配套小幅增伤
-		["w_dragon", 3]:
-			dragon_dmg_mult += 0.45
-			giant_slayer += 0.15
-		["w_dragon", 4]:  # 进化：灭世
-			dragon_dmg_mult += 0.5
-			sniper_pierce += 3
-			attack_speed_mult += 0.2
-		["w_sniper", 2]:
-			sniper_pierce += 2
-		["w_sniper", 3]:
-			sniper_dmg_mult += 0.45
-			giant_slayer += 0.15
-		["w_sniper", 4]:  # 进化：湮灭射线
-			sniper_dmg_mult += 0.5
-			sniper_pierce += 3
-			giant_slayer += 0.2
-		["w_sawblade", 2]:
-			saw_count += 1
-		["w_sawblade", 3]:
-			saw_speed_mult += 0.45
-			saw_dmg_mult += 0.3
-		["w_sawblade", 4]:  # 进化：千刃风暴
-			saw_count += 2
-			saw_speed_mult += 0.3
-		["w_boomerang", 2]:
-			boom_dmg_mult += 0.35
-			boom_size_mult += 0.4
-		["w_boomerang", 3]:
-			boom_count += 1
-		["w_boomerang", 4]:  # 进化：裂空
-			boom_count += 2
-			boom_size_mult += 0.6
-			boom_dmg_mult += 0.3
-		["w_shotgun", 2]:
-			pellet_count += 2
-		["w_shotgun", 3]:
-			pellet_dmg_mult += 0.8
-		["w_shotgun", 4]:  # 进化：龙息
-			pellet_count += 3
-			pellet_dmg_mult += 0.4
-		["w_arc", 2]:
-			arc_targets += 1
-		["w_arc", 3]:
-			arc_dmg_mult += 0.5
-		["w_arc", 4]:  # 进化：雷暴
-			arc_targets += 2
-			arc_dmg_mult += 0.5
+	var wdef = ContentLibraryS.get_default().weapon(StringName(weapon_id))
+	if wdef == null:
+		return
+	var lv = wdef.level_def(weapon_level)
+	if lv == null:
+		return
+	for m in lv.modifiers:
+		m.apply_to(self)
 
 func glass_cannon() -> void:
 	damage_mult += 0.4

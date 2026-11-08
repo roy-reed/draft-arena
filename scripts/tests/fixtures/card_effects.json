@@ -1,0 +1,154 @@
+{
+	"p_ammo_belt": {
+		"attack_speed_mult": 1.15
+	},
+	"p_anvil": {
+		"hp": 115.0,
+		"max_hp": 115.0
+	},
+	"p_armor": {
+		"armor": 2.0
+	},
+	"p_berserk": {
+		"berserk": true
+	},
+	"p_burst": {
+		"burst": true
+	},
+	"p_crit": {
+		"crit_chance": 0.15
+	},
+	"p_double": {
+		"double_chance": 0.25
+	},
+	"p_fang": {
+		"lifesteal": 1.0
+	},
+	"p_frost": {
+		"slow_on_hit": true
+	},
+	"p_giantslayer": {
+		"giant_slayer": 0.25
+	},
+	"p_glass": {
+		"damage_mult": 1.4,
+		"hp": 80.0,
+		"max_hp": 80.0
+	},
+	"p_golden": {
+		"gold_chance": 0.2
+	},
+	"p_grit": {
+		"grit": true
+	},
+	"p_lens": {
+		"bounce": 1
+	},
+	"p_magnet": {
+		"magnet": 1
+	},
+	"p_regen": {
+		"regen": 0.8
+	},
+	"p_revenge": {
+		"revenge": true
+	},
+	"p_sneakers": {
+		"speed": 246.4
+	},
+	"p_swift": {
+		"swift": true
+	},
+	"p_thorns": {
+		"thorns": 3.0
+	},
+	"p_whetstone": {
+		"damage_mult": 1.15
+	},
+	"u_arc_2": {
+		"arc_targets": 3,
+		"weapon_level": 2
+	},
+	"u_arc_3": {
+		"arc_dmg_mult": 1.5,
+		"weapon_level": 3
+	},
+	"u_arc_4": {
+		"arc_dmg_mult": 1.5,
+		"arc_targets": 4,
+		"weapon_level": 4
+	},
+	"u_boom_2": {
+		"boom_dmg_mult": 1.35,
+		"boom_size_mult": 1.4,
+		"weapon_level": 2
+	},
+	"u_boom_3": {
+		"boom_count": 2,
+		"weapon_level": 3
+	},
+	"u_boom_4": {
+		"boom_count": 3,
+		"boom_dmg_mult": 1.3,
+		"boom_size_mult": 1.6,
+		"weapon_level": 4
+	},
+	"u_dragon_2": {
+		"dragon_dmg_mult": 1.15,
+		"sniper_pierce": 4,
+		"weapon_level": 2
+	},
+	"u_dragon_3": {
+		"dragon_dmg_mult": 1.45,
+		"giant_slayer": 0.15,
+		"weapon_level": 3
+	},
+	"u_dragon_4": {
+		"attack_speed_mult": 1.2,
+		"dragon_dmg_mult": 1.5,
+		"sniper_pierce": 5,
+		"weapon_level": 4
+	},
+	"u_saw_2": {
+		"saw_count": 2,
+		"weapon_level": 2
+	},
+	"u_saw_3": {
+		"saw_dmg_mult": 1.3,
+		"saw_speed_mult": 1.45,
+		"weapon_level": 3
+	},
+	"u_saw_4": {
+		"saw_count": 3,
+		"saw_speed_mult": 1.3,
+		"weapon_level": 4
+	},
+	"u_shotgun_2": {
+		"pellet_count": 5,
+		"weapon_level": 2
+	},
+	"u_shotgun_3": {
+		"pellet_dmg_mult": 1.8,
+		"weapon_level": 3
+	},
+	"u_shotgun_4": {
+		"pellet_count": 6,
+		"pellet_dmg_mult": 1.4,
+		"weapon_level": 4
+	},
+	"u_sniper_2": {
+		"sniper_pierce": 4,
+		"weapon_level": 2
+	},
+	"u_sniper_3": {
+		"giant_slayer": 0.15,
+		"sniper_dmg_mult": 1.45,
+		"weapon_level": 3
+	},
+	"u_sniper_4": {
+		"giant_slayer": 0.2,
+		"sniper_dmg_mult": 1.5,
+		"sniper_pierce": 5,
+		"weapon_level": 4
+	}
+}

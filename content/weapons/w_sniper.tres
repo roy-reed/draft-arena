@@ -1,0 +1,65 @@
+[gd_resource type="Resource" load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/weapon_def.gd" id="wdef"]
+[ext_resource type="Script" path="res://scripts/core/weapon_level.gd" id="wlv"]
+[ext_resource type="Script" path="res://scripts/core/stat_modifier.gd" id="mod"]
+
+[sub_resource type="Resource" id="m0"]
+script = ExtResource("mod")
+stat = &"sniper_pierce"
+op = 0
+value = 2.0
+
+[sub_resource type="Resource" id="lv2"]
+script = ExtResource("wlv")
+level = 2
+modifiers = Array[Resource]([SubResource("m0")])
+
+[sub_resource type="Resource" id="m1"]
+script = ExtResource("mod")
+stat = &"sniper_dmg_mult"
+op = 0
+value = 0.45
+
+[sub_resource type="Resource" id="m2"]
+script = ExtResource("mod")
+stat = &"giant_slayer"
+op = 0
+value = 0.15
+
+[sub_resource type="Resource" id="lv3"]
+script = ExtResource("wlv")
+level = 3
+modifiers = Array[Resource]([SubResource("m1"), SubResource("m2")])
+
+[sub_resource type="Resource" id="m3"]
+script = ExtResource("mod")
+stat = &"sniper_dmg_mult"
+op = 0
+value = 0.5
+
+[sub_resource type="Resource" id="m4"]
+script = ExtResource("mod")
+stat = &"sniper_pierce"
+op = 0
+value = 3.0
+
+[sub_resource type="Resource" id="m5"]
+script = ExtResource("mod")
+stat = &"giant_slayer"
+op = 0
+value = 0.2
+
+[sub_resource type="Resource" id="lv4"]
+script = ExtResource("wlv")
+level = 4
+modifiers = Array[Resource]([SubResource("m3"), SubResource("m4"), SubResource("m5")])
+
+[resource]
+script = ExtResource("wdef")
+id = &"w_sniper"
+display_name = "狙击枪"
+interval_mult = 1.7
+mech_tag = &"bullet"
+owner_char = &"ranger"
+levels = Array[Resource]([SubResource("lv2"), SubResource("lv3"), SubResource("lv4")])
