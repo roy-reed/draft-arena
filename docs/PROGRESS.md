@@ -1,10 +1,22 @@
 # 进度日志 — 每次收工追加 ≤5 行，倒序排列
 
+## 2026-11-08（arch-v2 M2 首步：标签可见预览）
+- Task 分支接续 #24 M0/M1 并保留 main 后续修复；选牌显示中文标签，Tab/暂停/选牌显示被动标签层数，纯展示不改共鸣/进化规则。
+- 新增 build-tags-test：重复层、多标签、未知卡/武器排除、稳定顺序、三个属性入口与选牌文案；GDD/架构文档同步。
+- 验证：16 项 Godot 清单全绿（双端 SMOKE_OK / SIM_OK / 五轮 SOAK_OK，节点 563–641），真实 SHOT_OK；桌面/移动端选牌与暂停（含全被动）目视通过，PR #27 Linux CI 全绿。
+- 待 Roy 决策：评审本草稿与 #24 的合并范围；M2 奖励/配方仍未定稿，不包含在本次增量中。
+
 ## 2026-11-03（PR #23 三项 CI 评审补修）
 - Android 补 edited 与转草稿事件，Windows 补转草稿事件；Linux 测试与标签同步不随描述编辑重跑。
 - 测试登记豁免仅接受完整 patch 中的纯声明式新增行；混改 CI/协作/发布路径仍标 risk:L2。
 - store 位图豁免依赖实际 .gdignore 标记，删除/移动标记触发测试；新增真实合并提交与边界回归。
 - 验证：17 项 Python 自检、7 类临时合并提交、文档引用与 13 项 Godot 快速命令全绿（双 SMOKE_OK / SIM_OK）；未改玩法/数值/存档。
+
+## 2026-10-22（arch-v2 重构：M0 + M1）
+- 分支 arch-v2（草稿 PR #24，不合并）。M0：docs/design/ARCH_V2.md 设计冻结；修复 #21 合并丢失的「Tab 属性」提示（main 上 screen-layout-test 红）。
+- M1：scripts/core/（StatModifier、CardDef、WeaponDef、WeaponLevel、ContentLibrary、EventBus 自动加载）；39 张牌与 6 武器 18 个等级迁移为 content/*.tres，cards.gd 变为读数据的适配层，player.upgrade_weapon 改查表。
+- 验证：content-data-test 以迁移前快照逐值比对 39 张牌效果 + 内容 lint + 纯数据新武器；本地全量 16 项（含 soak）通过、修复后冷启动 Quick 15 项通过，CI 三项全绿。
+- 坑：Godot 4.4.1 冷启动 --import 时，按 preload 脚本类型化的导出数组（Array[XxxS]）触发「resources still in use」→ 统一用 Array[Resource]。
 
 ## 2026-10-17（协作流程：GitHub 入口与测试分层）
 - 新增 Issue 表单（缺陷/试玩反馈/需求）、PR 模板与标签目录；PR 自动检查标题格式并打 size、risk:L2、needs-decision 标签。

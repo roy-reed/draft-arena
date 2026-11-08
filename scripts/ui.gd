@@ -1,6 +1,8 @@
 extends CanvasLayer
 # 灰盒 UI：主菜单（角色三选一 + meta 商店）+ HUD + 选牌面板 + 结算面板，全部代码构建
 
+const BuildTagsS := preload("res://scripts/core/build_tags.gd")
+
 var hp_fill: ColorRect
 var hp_label: Label
 var xp_fill: ColorRect
@@ -564,7 +566,11 @@ func show_draft(cards: Array, on_pick: Callable, title_text := "选择一张牌"
 	draft_title.text = title_text
 	for i in mini(3, cards.size()):
 		var c: Dictionary = cards[i]
-		draft_buttons[i].text = "%s\n\n%s" % [c["name"], c["desc"]]
+		var tags := BuildTagsS.card_labels(c)
+		var heading: String = c["name"]
+		if not tags.is_empty():
+			heading += "\n[" + tags + "]"
+		draft_buttons[i].text = "%s\n\n%s" % [heading, c["desc"]]
 	draft_center.visible = true
 	_sync_stats_visibility()
 	FX.pop_in(draft_panel)

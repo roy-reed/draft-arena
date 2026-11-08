@@ -4,6 +4,7 @@ extends Node2D
 # 6 倍速自动：选角色 1 → 发 500 币买满三条 meta 线 → 新武器命中自检 → 打通 3 区域 → SMOKE_OK
 
 const Cards := preload("res://scripts/cards.gd")
+const EventBusS := preload("res://scripts/core/event_bus.gd")
 const MetaS := preload("res://scripts/meta.gd")
 const PlayerS := preload("res://scripts/player.gd")
 const EnemyS := preload("res://scripts/enemy.gd")
@@ -1104,6 +1105,7 @@ func _card_pool() -> Array:
 	return Cards.all_cards().filter(func(c): return bool(c.get("m0", false)) or c["id"] in unlocked)
 
 func _on_enemy_killed(coin_value: int, pos: Vector2, xp_value: int) -> void:
+	EventBusS.emit_safe(&"enemy_killed", [pos, xp_value, coin_value])
 	enemies_alive = maxi(0, enemies_alive - 1)
 	kills += 1
 	_digest = hash([_digest, Engine.get_physics_frames() - _frame0, pos.round(), coin_value, xp_value])
@@ -1254,6 +1256,7 @@ func _on_card_picked(i: int) -> void:
 	if i >= _offer.size():
 		return
 	_offer[i]["apply"].call(player)
+	EventBusS.emit_safe(&"card_picked", [_offer[i]["id"], _offer[i]["kind"]])
 	if _offer[i]["kind"] == "passive":
 		player.owned_passives.append(_offer[i]["id"])
 	ui.hide_draft()
@@ -1277,6 +1280,7 @@ func _on_card_picked(i: int) -> void:
 	_set_mobs_frozen(false)
 
 func _on_player_died() -> void:
+	EventBusS.emit_safe(&"player_died")
 	_finish("over")
 
 func _finish(result: String) -> void:
