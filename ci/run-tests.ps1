@@ -44,6 +44,7 @@ $checks = @(
     [pscustomobject]@{ Name = 'collision-grid-test'; Args = $base + @('--script', 'res://scripts/tests/collision_grid_test.gd'); Marker = 'COLLISION_GRID_OK' }
     [pscustomobject]@{ Name = 'playtest-feedback-test'; Args = $base + @('--script', 'res://scripts/tests/playtest_feedback_test.gd'); Marker = 'PLAYTEST_FEEDBACK_OK' }
     [pscustomobject]@{ Name = 'content-data-test'; Args = $base + @('--script', 'res://scripts/tests/content_data_test.gd'); Marker = 'CONTENT_DATA_OK' }
+    [pscustomobject]@{ Name = 'build-tags-test'; Args = $base + @('--script', 'res://scripts/tests/build_tags_test.gd'); Marker = 'BUILD_TAGS_OK' }
     [pscustomobject]@{ Name = 'sim';              Args = $base + @('--', '--sim');                                          Marker = 'SIM_OK' }
     [pscustomobject]@{ Name = 'soak';             Args = $base + @('--', '--soak', '--grid-verify');                                         Marker = 'SOAK_OK' }
 )

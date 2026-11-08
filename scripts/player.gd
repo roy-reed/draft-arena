@@ -75,6 +75,7 @@ var _sparks: Node2D = null
 const HIGHLIGHT_SPARK_COUNT := 4
 
 const CardsS := preload("res://scripts/cards.gd")
+const BuildTagsS := preload("res://scripts/core/build_tags.gd")
 const ContentLibraryS := preload("res://scripts/core/content_library.gd")
 const SawbladeS := preload("res://scripts/sawblade.gd")
 const BASE_HIT_KNOCKBACK := 130.0
@@ -397,7 +398,7 @@ func combat_summary() -> String:
 	for id in seen:
 		buffs.append("%s×%d" % [CardsS.get_card(id).get("name", id), seen[id]])
 	var unit := "每弹" if weapon_id == "w_shotgun" else "每次命中"
-	return "%s Lv%d · %s\n%s伤害 %.1f（未计护甲/暴击）· 对精英 +%.0f%%\n移速 %.0f · 护甲 %.0f · 击杀回血 %.0f · 再生 %.1f/秒\n暴击 %.0f%% · 追加 %.0f%% · 首领奖励 +%d/槽位\n增益：%s" % [CardsS.WEAPONS[weapon_id]["name"], weapon_level, cadence, unit, dmg, giant_slayer * 100.0, speed * (1.25 if swift_t > 0.0 else 1.0), armor, lifesteal, regen, minf(crit_chance, 1.0) * 100.0, minf(double_chance, 1.0) * 100.0, magnet * 3, "、".join(buffs) if not buffs.is_empty() else "无"]
+	return "%s Lv%d · %s\n%s伤害 %.1f（未计护甲/暴击）· 对精英 +%.0f%%\n移速 %.0f · 护甲 %.0f · 击杀回血 %.0f · 再生 %.1f/秒\n暴击 %.0f%% · 追加 %.0f%% · 首领奖励 +%d/槽位\n增益：%s\n%s" % [CardsS.WEAPONS[weapon_id]["name"], weapon_level, cadence, unit, dmg, giant_slayer * 100.0, speed * (1.25 if swift_t > 0.0 else 1.0), armor, lifesteal, regen, minf(crit_chance, 1.0) * 100.0, minf(double_chance, 1.0) * 100.0, magnet * 3, "、".join(buffs) if not buffs.is_empty() else "无", BuildTagsS.passive_summary(owned_passives, CardsS.all_cards())]
 
 func _fire(target: Node2D, base_dmg: float, pierce: int) -> void:
 	_fire_dir((target.position - position).normalized(), base_dmg, pierce, target)
