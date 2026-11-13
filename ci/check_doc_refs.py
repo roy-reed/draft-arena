@@ -15,7 +15,7 @@ EXTS = {".md", ".gd", ".py", ".ps1", ".yml", ".yaml", ".cfg", ".txt", ".sh"}
 
 
 def main() -> int:
-    files = subprocess.check_output(["git", "ls-files"], cwd=ROOT, text=True).split()
+    files = subprocess.check_output(["git", "ls-files"], cwd=ROOT, text=True, encoding="utf-8").split()
     bad = []
     for rel in files:
         path = ROOT / rel
@@ -35,3 +35,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
