@@ -68,7 +68,7 @@ def classify(files, head_ref: str = "", title: str = "") -> dict:
 def merge_diff() -> list:
     """PR 合并提交相对目标分支的改动路径（--no-renames：重命名记为删旧增新，新旧路径都在列表里）。"""
     parents = subprocess.run(["git", "rev-list", "--parents", "-n", "1", "HEAD"],
-                             check=True, capture_output=True, text=True).stdout.split()
+                             check=True, capture_output=True, text=True, encoding="utf-8").stdout.split()
     if len(parents) != 3:
         raise RuntimeError("HEAD 不是 PR 合并提交（checkout 需 fetch-depth: 2）")
     out = subprocess.run(["git", "diff", "--no-renames", "--name-only", "-z", "HEAD^1", "HEAD"],
@@ -109,3 +109,4 @@ def main(argv=None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
