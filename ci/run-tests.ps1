@@ -21,6 +21,15 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$processName = [System.IO.Path]::GetFileNameWithoutExtension([Environment]::ProcessPath)
+if ($PSVersionTable.PSEdition -ne 'Core' -or $PSVersionTable.PSVersion -lt [version]'7.0' -or $processName -ne 'pwsh') {
+    throw 'ci/run-tests.ps1 仅支持 PowerShell 7+ 的 pwsh.exe。'
+}
+$utf8 = [System.Text.UTF8Encoding]::new($false)
+[Console]::InputEncoding = $utf8
+[Console]::OutputEncoding = $utf8
+$OutputEncoding = $utf8
+$PSDefaultParameterValues['*:Encoding'] = 'utf8'
 # pwsh -File 传入的 "a,b" 是单个字符串，这里统一拆分
 $Only = @($Only | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 
@@ -52,7 +61,7 @@ $checks = @(
 # 登记校验：每个测试脚本必须出现在 boss_test_runner.gd 或上面的清单里
 function Test-Registry {
     $testsDir = Join-Path $root 'scripts' 'tests'
-    $runnerText = Get-Content -LiteralPath (Join-Path $testsDir 'boss_test_runner.gd') -Raw
+    $runnerText = Get-Content -LiteralPath (Join-Path $testsDir 'boss_test_runner.gd') -Raw -Encoding utf8
     $listed = ($checks | ForEach-Object { $_.Args }) -join ' '
     $missing = @(Get-ChildItem -LiteralPath $testsDir -Filter '*_test.gd' | Where-Object {
         $res = "res://scripts/tests/$($_.Name)"
@@ -100,7 +109,8 @@ $table = $results | Format-Table -AutoSize | Out-String
 Write-Host $table
 if ($env:GITHUB_STEP_SUMMARY) {
     $md = @('| 检查 | 结果 | 秒 |', '|---|---|---|') + ($results | ForEach-Object { "| $($_.Name) | $($_.Result) | $($_.Seconds) |" })
-    Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($md -join "`n")
+    Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ($md -join "`n") -Encoding utf8
 }
 if ($failed -gt 0) { Write-Host "$failed 项检查失败"; exit 1 }
 Write-Host "ALL_TESTS_OK ($($results.Count) 项)"
+
