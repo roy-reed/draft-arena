@@ -194,7 +194,7 @@ class MergeScopeTest(unittest.TestCase):
             self.assertEqual(change_scope.classify(["store/note.md"]), {"game": False, "android": False})
         cfg = configparser.ConfigParser()
         cfg.read(Path(ROOT) / "export_presets.cfg", encoding="utf-8")
-        self.assertEqual(cfg.get("preset.0", "export_path"), "dist/DraftArena.exe")
+        self.assertEqual(cfg.get("preset.0", "export_path").strip('"'), "dist/DraftArena.exe")
         for section in cfg.sections():
             if cfg.has_option(section, "exclude_filter"):
                 patterns = cfg.get(section, "exclude_filter").strip('"').split(',')
