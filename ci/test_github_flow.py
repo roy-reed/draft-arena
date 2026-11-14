@@ -123,7 +123,7 @@ class ChangeScopeTest(unittest.TestCase):
 class WorkflowEventsTest(unittest.TestCase):
     def test_metadata_and_draft_consumers(self):
         def workflow(name):
-            return (Path(ROOT) / ".github/workflows" / (name + ".yml")).read_text()
+            return (Path(ROOT) / ".github/workflows" / (name + ".yml")).read_text(encoding="utf-8")
         for name in ("android", "pr-hygiene"):
             self.assertRegex(workflow(name), r"types: \[[^\]]*edited")
         for name in ("android", "build-windows"):
@@ -148,14 +148,15 @@ class MergeScopeTest(unittest.TestCase):
             with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
                 def git(*args):
-                    return subprocess.check_output(["git", *args], cwd=root, stderr=subprocess.DEVNULL, text=True).strip()
+                    return subprocess.check_output(["git", *args], cwd=root, stderr=subprocess.DEVNULL,
+                                                   text=True, encoding="utf-8").strip()
                 def write(rel, content):
                     path = root / rel
                     path.parent.mkdir(parents=True, exist_ok=True)
                     if content is None:
                         path.unlink()
                     else:
-                        path.write_text(content)
+                        path.write_text(content, encoding="utf-8")
                 git("init", "-b", "base")
                 git("config", "user.name", "Scope Test")
                 git("config", "user.email", "scope@example.invalid")
@@ -171,11 +172,12 @@ class MergeScopeTest(unittest.TestCase):
                 git("add", "-A")
                 git("commit", "-qm", "topic")
                 event = root / "event.json"
-                event.write_text(json.dumps({"pull_request": {"number": 1, "head": {"ref": "fix/test"}, "title": "fix: test"}}))
+                event.write_text(json.dumps({"pull_request": {"number": 1, "head": {"ref": "fix/test"}, "title": "fix: test"}}),
+                                 encoding="utf-8")
                 env = dict(os.environ, GITHUB_EVENT_NAME="pull_request", GITHUB_EVENT_PATH=str(event))
                 def detect():
                     result = subprocess.run([sys.executable, str(Path(ROOT) / "ci/change_scope.py")], cwd=root,
-                                            env=env, capture_output=True, text=True, check=True)
+                                            env=env, capture_output=True, text=True, encoding="utf-8", check=True)
                     return result.stdout, result.stderr
                 out, err = detect()
                 self.assertEqual(out, "game=true\nandroid=true\n")
@@ -191,7 +193,8 @@ class MergeScopeTest(unittest.TestCase):
             self.assertEqual(change_scope.classify(["store/unlisted.png"]), {"game": True, "android": False})
             self.assertEqual(change_scope.classify(["store/note.md"]), {"game": False, "android": False})
         cfg = configparser.ConfigParser()
-        cfg.read(Path(ROOT) / "export_presets.cfg")
+        cfg.read(Path(ROOT) / "export_presets.cfg", encoding="utf-8")
+        self.assertEqual(cfg.get("preset.0", "export_path").strip('"'), "dist/DraftArena.exe")
         for section in cfg.sections():
             if cfg.has_option(section, "exclude_filter"):
                 patterns = cfg.get(section, "exclude_filter").strip('"').split(',')
@@ -205,7 +208,7 @@ class LabelCatalogTest(unittest.TestCase):
         needed = {"size:S", "size:M", "size:L", "size:XL", pr_hygiene.RISK_LABEL, pr_hygiene.DECISION_LABEL}
         forms = os.path.join(ROOT, ".github", "ISSUE_TEMPLATE")
         for name in os.listdir(forms):
-            text = open(os.path.join(forms, name), encoding="utf-8").read()
+            text = (Path(forms) / name).read_text(encoding="utf-8")
             for match in re.finditer(r"^labels:\s*\[(.*)\]\s*$", text, flags=re.M):
                 needed |= set(json.loads(f"[{match.group(1)}]"))
         self.assertTrue(needed <= names, needed - names)
@@ -223,3 +226,4 @@ class LabelCatalogTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
