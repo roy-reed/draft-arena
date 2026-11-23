@@ -4,7 +4,7 @@
 
 ## 项目一句话
 
-Brotato 式短局肉鸽竞技场 + 经验升级选卡构筑，像素风，Godot 4.4.1，目标低价买断上 Steam（先进 Next Fest）。单人开发（Roy，每周 2–4h），agent 负责代码推进，Roy 负责真人 playtest。
+Brotato 式短局肉鸽竞技场 + 经验升级选卡构筑，像素风，Godot 4.7.2，目标低价买断上 Steam（先进 Next Fest）。单人开发（Roy，每周 2–4h），agent 负责代码推进，Roy 负责真人 playtest。
 
 ## 文档索引（权威顺序）
 
@@ -16,10 +16,10 @@ Brotato 式短局肉鸽竞技场 + 经验升级选卡构筑，像素风，Godot 
 ## 环境引导（首次 clone 后）
 
 ```bash
-python tools_setup_godot.py     # 自动下载 Godot 4.4.1 到 .tools/godot/（win/linux 自适应，约 50–150MB）
+python tools_setup_godot.py     # 自动下载 Godot 4.7.2 到 .tools/godot/（win/linux 自适应，约 50–150MB）
 ```
 
-或手动从 godotengine.org releases 下载 4.4.1-stable。引擎不进仓库。
+或手动从 godotengine.org releases 下载 4.7.2-stable。引擎不进仓库。
 
 ## 验收契约（硬规则，任何改动后必须执行）
 
@@ -39,7 +39,7 @@ $GODOT --path . -- --shot                      # UI/视觉改动必跑：真实�
 
 ## 编码约定
 
-- GDScript 4.4，Tab 缩进，UTF-8 无 BOM，注释简体中文且克制（只写代码看不出的约束）。
+- GDScript 4.7，Tab 缩进，UTF-8 无 BOM，注释简体中文且克制（只写代码看不出的约束）。
 - 单例模式：表现层库（fx.gd / audio.gd）= `class_name` + `static var I` + `enabled` 开关，smoke 下自动禁用。
 - 命中判定全部距离制（无物理引擎）；子弹/回旋镖必须子步进防高速穿模。
 - 敌人伤害入口有死亡守卫（`_dead`），击杀信号带位置与经验；新增伤害源勿绕过 `take_damage`。

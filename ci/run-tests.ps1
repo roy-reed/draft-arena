@@ -6,7 +6,7 @@
 
 .EXAMPLE
   pwsh ./ci/run-tests.ps1 -Godot .\.tools\godot\godot_console.exe
-  pwsh ./ci/run-tests.ps1 -Godot ~/godot/Godot_v4.4.1-stable_linux.x86_64 -Quick
+  pwsh ./ci/run-tests.ps1 -Godot ~/godot/Godot_v4.7.2-stable_linux.x86_64 -Quick
   pwsh ./ci/run-tests.ps1 -List
 #>
 [CmdletBinding()]

@@ -19,10 +19,10 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  GODOT_VERSION: 4.4.1-stable
-  # SHA-512 取自 Godot 官方发布附带的 SHA512-SUMS.txt（godotengine/godot 4.4.1-stable）
-  GODOT_EDITOR_SHA512: 266978b803f7532edc69bdd5d8c4fdced0ea97aef1224a8879616398a2559e135520e186add06b532aa92bdfeecf6ac024634024de4b3abd69f6c34e6d6d0563
-  GODOT_TEMPLATES_SHA512: 8f461c7d6e91a0fbabfc95b1e4ca70ff1732c6f2920956a16b086ec2a85b5f7e238baf4dbce60dcc5630fae3bcb9a1fa2ae2027b92cb495c02d082705715e441
+  GODOT_VERSION: 4.7.2-stable
+  # SHA-512 取自 Godot 官方发布附带的 SHA512-SUMS.txt（godotengine/godot 4.7.2-stable）
+  GODOT_EDITOR_SHA512: 83decd58fdf67b9d657958a1ae6bf1929c20785315a81effe245874cdc57acb709bf868e00778a96984338c1b29dafdb453c6847747694621c6ecf5da2259993
+  GODOT_TEMPLATES_SHA512: ca4d71c4d7b81dfc15d1a98baa07534aa95b03fdda78a0075b06672e1648d2e5f40980c9adc28d23e1b92e732ee7bf3461997aa804af74ec2fcd7a93ccb84079
 
 jobs:
   # 只改文档/模板/标签目录的 PR 不构建；草稿 PR 不构建（ci/change_scope.py）
@@ -75,7 +75,7 @@ jobs:
         run: |
           $v = $env:GODOT_VERSION
           # self-contained 模式：模板放 .tools/godot/editor_data/export_templates
-          $dst = ".tools\godot\editor_data\export_templates\4.4.1.stable"
+          $dst = ".tools\godot\editor_data\export_templates\4.7.2.stable"
           New-Item -ItemType Directory -Force -Path $dst | Out-Null
           Set-Content .tools\godot\_sc_ "self-contained"
           $url = "https://github.com/godotengine/godot/releases/download/$v/Godot_v${v}_export_templates.tpz"
