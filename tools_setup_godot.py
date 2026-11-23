@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""环境引导：下载 Godot 4.4.1-stable 到仓库内 .tools/godot/（win/linux 自适应）。
+"""环境引导：下载 Godot 4.7.2-stable 到仓库内 .tools/godot/（win/linux 自适应）。
 用法：python tools_setup_godot.py [--force]
 纯标准库；已存在时跳过。"""
 import os
@@ -9,7 +9,7 @@ import sys
 import urllib.request
 import zipfile
 
-VERSION = "4.4.1-stable"
+VERSION = "4.7.2-stable"
 BASE = "https://github.com/godotengine/godot/releases/download/" + VERSION + "/"
 
 # 平台 -> (zip 名, {zip 内文件: 输出文件名})

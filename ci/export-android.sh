@@ -4,7 +4,7 @@
 # 用法：ci/export-android.sh <debug|release> <输出 apk 路径> [版本标签 vX.Y.Z]
 #
 # 必需环境变量：
-#   GODOT          Godot 4.4.1 Linux 编辑器可执行文件（ci/install-godot-linux.sh 安装）
+#   GODOT          Godot 4.7.2 Linux 编辑器可执行文件（ci/install-godot-linux.sh 安装）
 #   ANDROID_HOME   Android SDK 根目录（需含 build-tools；GitHub ubuntu runner 已预装）
 #   JAVA_HOME      JDK 17
 # 可选：
@@ -17,9 +17,9 @@ set -euo pipefail
 mode="${1:?debug|release}"; out="${2:?output apk}"; tag="${3:-}"
 case "$mode" in debug|release) ;; *) echo "mode must be debug or release" >&2; exit 2 ;; esac
 : "${GODOT:?}" "${ANDROID_HOME:?}" "${JAVA_HOME:?}"
-GODOT_VERSION="${GODOT_VERSION:-4.4.1-stable}"
-# SHA-512 取自 Godot 官方 SHA512-SUMS.txt（4.4.1-stable，Godot_v4.4.1-stable_export_templates.tpz），与 build-windows.yml 相同
-TEMPLATES_SHA512="8f461c7d6e91a0fbabfc95b1e4ca70ff1732c6f2920956a16b086ec2a85b5f7e238baf4dbce60dcc5630fae3bcb9a1fa2ae2027b92cb495c02d082705715e441"
+GODOT_VERSION="${GODOT_VERSION:-4.7.2-stable}"
+# SHA-512 取自 Godot 官方 SHA512-SUMS.txt（4.7.2-stable，Godot_v4.7.2-stable_export_templates.tpz），与 build-windows.yml 相同
+TEMPLATES_SHA512="ca4d71c4d7b81dfc15d1a98baa07534aa95b03fdda78a0075b06672e1648d2e5f40980c9adc28d23e1b92e732ee7bf3461997aa804af74ec2fcd7a93ccb84079"
 PACKAGE="com.royreed.draftarena"
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -43,7 +43,7 @@ fi
 # 2) 隔离的编辑器设置（XDG 指向 tools 目录，不读写用户 ~/.config/godot）
 export XDG_DATA_HOME="$tools/data" XDG_CONFIG_HOME="$tools/config" XDG_CACHE_HOME="$tools/cache"
 mkdir -p "$XDG_CONFIG_HOME/godot"
-cat > "$XDG_CONFIG_HOME/godot/editor_settings-4.4.tres" <<TRES
+cat > "$XDG_CONFIG_HOME/godot/editor_settings-4.7.tres" <<TRES
 [gd_resource type="EditorSettings" format=3]
 
 [resource]

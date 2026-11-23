@@ -74,10 +74,11 @@ func _test_desktop_identical() -> void:
 	_eq(ui.hud_hint.global_position, Vector2(24, 690), "controls hint")
 	_eq(ui.combo_label.global_position, Vector2(1030, 60), "combo label")
 	_eq(ui.banner_label.global_position, Vector2(0, 120), "banner")
-	# Label 会撑到最小高度：在 main 分支原实现上实测 banner 为 1280×102、hint 为 1280×54
-	_eq(ui.banner_label.size, Vector2(1280, 102), "banner size (legacy measured)")
+	# Godot 4.7 起 Label 遵守 _span_width 给出的锚点高度（banner h=50、hint h=30），
+	# 不再像 4.4 那样按字体/描边最小高度撑到 102 / 54。字高实测 47 / 26，可放入该框。
+	_eq(ui.banner_label.size, Vector2(1280, 50), "banner size (span_width height)")
 	_eq(ui.hint_label.global_position, Vector2(0, 178), "hint label")
-	_eq(ui.hint_label.size, Vector2(1280, 54), "hint label size (legacy measured)")
+	_eq(ui.hint_label.size, Vector2(1280, 30), "hint label size (span_width height)")
 	_txt(ui.hud_hint.text, "WASD / 方向键移动 · 攻击全自动 · ESC 暂停 · Tab 属性 · F11 全屏", "desktop controls hint unchanged")
 	_txt(ui.menu_hint.text, "选择角色（按 1 / 2 / 3 或点击），Space 或按钮开始", "desktop menu hint unchanged")
 	_txt(ui.start_btn.text, "开始（Space）", "desktop start button unchanged")

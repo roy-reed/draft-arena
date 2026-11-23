@@ -1,6 +1,6 @@
 # Draft Arena
 
-Brotato 式短局肉鸽竞技场 + 经验升级选卡构筑。像素风，Godot 4.4.1，目标低价买断上架 Steam（先 Next Fest）。单人开发，agent 协作推进。
+Brotato 式短局肉鸽竞技场 + 经验升级选卡构筑。像素风，Godot 4.7.2，目标低价买断上架 Steam（先 Next Fest）。单人开发，agent 协作推进。
 
 ## 下载游玩
 
@@ -56,12 +56,12 @@ pwsh ./ci/run-tests.ps1                                   # 全部检查，默�
 pwsh ./ci/run-tests.ps1 -Quick                            # 跳过耗时的 soak
 pwsh ./ci/run-tests.ps1 -Only boss-test,sim               # 只运行指定检查
 pwsh ./ci/run-tests.ps1 -List                             # 列出全部检查项
-pwsh ./ci/run-tests.ps1 -Godot /path/to/godot             # 指定其他 Godot 4.4.1 可执行文件（也可设环境变量 GODOT）
+pwsh ./ci/run-tests.ps1 -Godot /path/to/godot             # 指定其他 Godot 4.7.2 可执行文件（也可设环境变量 GODOT）
 ```
 
 检查顺序：registry（确认 `scripts/tests/*_test.gd` 都已登记）→ import → smoke → boss-test → sawblade-test → spawn-curve-test → sim → soak。新增独立测试脚本时，要在 `ci/run-tests.ps1` 的检查清单或 `scripts/tests/boss_test_runner.gd` 中登记。
 
-Linux 上可以先用 `GODOT_VERSION=4.4.1-stable GODOT_LINUX_SHA512=<见 tests-linux.yml> ./ci/install-godot-linux.sh` 下载 Godot（会校验官方 SHA-512），再运行 `pwsh ./ci/run-tests.ps1 -Godot .tools/godot-linux/godot`。CI 中的 `tests-linux` 工作流就是这样执行的。PR 上只跑快速模式（`-Quick`，不含 soak）；推送到 main、每日定时（03:17 北京时间）和手动触发时跑完整 soak。Windows 构建始终用快速模式。文档引用由 `python3 ci/check_doc_refs.py` 校验。
+Linux 上可以先用 `GODOT_VERSION=4.7.2-stable GODOT_LINUX_SHA512=<见 tests-linux.yml> ./ci/install-godot-linux.sh` 下载 Godot（会校验官方 SHA-512），再运行 `pwsh ./ci/run-tests.ps1 -Godot .tools/godot-linux/godot`。CI 中的 `tests-linux` 工作流就是这样执行的。PR 上只跑快速模式（`-Quick`，不含 soak）；推送到 main、每日定时（03:17 北京时间）和手动触发时跑完整 soak。Windows 构建始终用快速模式。文档引用由 `python3 ci/check_doc_refs.py` 校验。
 
 ## 自动构建
 
